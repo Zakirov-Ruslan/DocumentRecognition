@@ -1,0 +1,61 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37314.3
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocumentRecognition.Core", "DocumentRecognition.Core\DocumentRecognition.Core.csproj", "{0D2BE88E-2C33-47AE-A7DB-A5AE757EEE6F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UI", "UI", "{36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocumentRecognition.Console", "DocumentRecognition.Console\DocumentRecognition.Console.csproj", "{85E9C116-A63F-436B-9CE4-A47BD3B701E1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocumentRecognition.WebApi", "DocumentRecognition.WebApi\DocumentRecognition.WebApi.csproj", "{879A7FBE-91D4-4646-B80C-CFEE6209316B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocumentRecognition.Application", "DocumentRecognition.Application\DocumentRecognition.Application.csproj", "{587C3926-2E5E-44BC-80C4-0AEB2E0CFCDD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocumentRecognition.Infrastructure", "DocumentRecognition.Infrastructure\DocumentRecognition.Infrastructure.csproj", "{83179F2A-7CA4-437E-91B9-268F315C7D3D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocumentRecognition.OnnxRecognizer", "DocumentRecognition.OnnxRecognizer\DocumentRecognition.OnnxRecognizer.csproj", "{5F727BA5-7A98-4721-8521-3E757271C96B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0D2BE88E-2C33-47AE-A7DB-A5AE757EEE6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D2BE88E-2C33-47AE-A7DB-A5AE757EEE6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D2BE88E-2C33-47AE-A7DB-A5AE757EEE6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D2BE88E-2C33-47AE-A7DB-A5AE757EEE6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85E9C116-A63F-436B-9CE4-A47BD3B701E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85E9C116-A63F-436B-9CE4-A47BD3B701E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85E9C116-A63F-436B-9CE4-A47BD3B701E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85E9C116-A63F-436B-9CE4-A47BD3B701E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{879A7FBE-91D4-4646-B80C-CFEE6209316B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{879A7FBE-91D4-4646-B80C-CFEE6209316B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{879A7FBE-91D4-4646-B80C-CFEE6209316B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{879A7FBE-91D4-4646-B80C-CFEE6209316B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{587C3926-2E5E-44BC-80C4-0AEB2E0CFCDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{587C3926-2E5E-44BC-80C4-0AEB2E0CFCDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{587C3926-2E5E-44BC-80C4-0AEB2E0CFCDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{587C3926-2E5E-44BC-80C4-0AEB2E0CFCDD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83179F2A-7CA4-437E-91B9-268F315C7D3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83179F2A-7CA4-437E-91B9-268F315C7D3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83179F2A-7CA4-437E-91B9-268F315C7D3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83179F2A-7CA4-437E-91B9-268F315C7D3D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F727BA5-7A98-4721-8521-3E757271C96B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F727BA5-7A98-4721-8521-3E757271C96B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F727BA5-7A98-4721-8521-3E757271C96B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F727BA5-7A98-4721-8521-3E757271C96B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{85E9C116-A63F-436B-9CE4-A47BD3B701E1} = {36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}
+		{879A7FBE-91D4-4646-B80C-CFEE6209316B} = {36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A2C70285-B46E-44EE-A8A1-0BD534CA5E88}
+	EndGlobalSection
+EndGlobal
