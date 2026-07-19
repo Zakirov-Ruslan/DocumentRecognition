@@ -1,0 +1,8 @@
+<Project>
+  <ItemGroup Condition="'$(IncludeModels)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)Shared\OnnxModels\**\*.*" 
+          Link="OnnxModels\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          Visible="true" />
+  </ItemGroup>
+</Project>
