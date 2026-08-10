@@ -61,7 +61,7 @@ namespace DocumentRecognition.Infrastructure.Services
                                     padding: (int)(20 * scale),
                                     doAngle: true,
                                     mostAngle: false,
-                                    unClipRatio: 1.4f,
+                                    unClipRatio: 1.2f,
                                     boxThresh: 0.2f,
                                     boxScoreThresh: 0.25f,
                                     maxSideLen: 1024
