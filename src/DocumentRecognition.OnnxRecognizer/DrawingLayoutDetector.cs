@@ -29,9 +29,23 @@ namespace DocumentRecognition.OnnxRecognizer
 
         public DrawingLayoutDetector(string onnxPath)
         {
-            var opts = new SessionOptions();
-            opts.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
-            _session = new InferenceSession(onnxPath, opts);
+            var op = new SessionOptions();
+            op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
+
+            try
+            {
+                op.AppendExecutionProvider_DML();
+                Console.WriteLine($"[CrnnNet] DirectML initialized on device");
+            }
+            catch (Exception dmlEx)
+            {
+                // Fallback CPU, if DirectML now awailable
+                Console.WriteLine($"[CrnnNet] DirectML failed ({dmlEx.Message}), falling back to CPU.");
+
+                op.AppendExecutionProvider_CPU(0);
+            }
+
+            _session = new InferenceSession(onnxPath, op);
         }
 
         public List<DrawingLayoutDetection> Detect(Mat image)

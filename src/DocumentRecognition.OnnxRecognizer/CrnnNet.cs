@@ -38,18 +38,30 @@ namespace Ocr
             try
             {
                 SessionOptions op = new SessionOptions();
+
                 op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
+
+                try
+                {
+                    op.AppendExecutionProvider_DML();
+                    Console.WriteLine($"[CrnnNet] DirectML initialized on device");
+                }
+                catch (Exception dmlEx)
+                {
+                    // Fallback CPU, if DirectML now awailable
+                    Console.WriteLine($"[CrnnNet] DirectML failed ({dmlEx.Message}), falling back to CPU.");
+
+                    op.AppendExecutionProvider_CPU(0);
+
+                    op.InterOpNumThreads = numThread;
+                    op.IntraOpNumThreads = numThread;
+                }
+
                 _crnnNet = new InferenceSession(path, op);
                 _inputNames = _crnnNet.InputMetadata.Keys.ToList();
                 _keys = InitKeys(keysPath);
-                await Task.CompletedTask;
 
-                foreach (var input in _crnnNet.InputMetadata)
-                {
-                    Console.WriteLine($"Input: {input.Key}, Shape: [{string.Join(", ", input.Value.Dimensions)}]");
-                }
+                await Task.CompletedTask;
             }
             catch (Exception ex)
             {
@@ -118,7 +130,7 @@ namespace Ocr
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message + ex.StackTrace);
-                //throw ex;
+                throw;
             }
 
             return textLine;

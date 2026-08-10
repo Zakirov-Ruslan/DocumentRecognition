@@ -7,3 +7,4 @@
 - Renamed classes and methods according to naming rules and conventions
 - Models moved to separated files
 - Added some models like document orientation classification and others
+- Added DirectMl processing

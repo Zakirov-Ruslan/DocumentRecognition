@@ -42,16 +42,27 @@ namespace Ocr
             {
                 SessionOptions op = new SessionOptions();
                 op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
+
+                try
+                {
+                    op.AppendExecutionProvider_DML();
+                    Console.WriteLine($"[CrnnNet] DirectML initialized on device");
+                }
+                catch (Exception dmlEx)
+                {
+                    // Fallback CPU, if DirectML now awailable
+                    Console.WriteLine($"[CrnnNet] DirectML failed ({dmlEx.Message}), falling back to CPU.");
+
+                    op.AppendExecutionProvider_CPU(0);
+
+                    op.InterOpNumThreads = numThread;
+                    op.IntraOpNumThreads = numThread;
+                }
+
                 _dbNet = new InferenceSession(path, op);
                 _inputNames = _dbNet.InputMetadata.Keys.ToList();
-                await Task.CompletedTask;
 
-                foreach (var input in _dbNet.InputMetadata)
-                {
-                    Console.WriteLine($"Input: {input.Key}, Shape: [{string.Join(", ", input.Value.Dimensions)}]");
-                }
+                await Task.CompletedTask;
             }
             catch (Exception ex)
             {
