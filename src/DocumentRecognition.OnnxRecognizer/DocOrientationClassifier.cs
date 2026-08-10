@@ -20,12 +20,12 @@ public class DocOrientationClassifier : IDisposable
         try
         {
             op.AppendExecutionProvider_DML();
-            Console.WriteLine($"[CrnnNet] DirectML initialized on device");
+            Console.WriteLine($"[DocOrientationClassifier] DirectML initialized on device");
         }
         catch (Exception dmlEx)
         {
             // Fallback CPU, if DirectML now awailable
-            Console.WriteLine($"[CrnnNet] DirectML failed ({dmlEx.Message}), falling back to CPU.");
+            Console.WriteLine($"[DocOrientationClassifier] DirectML failed ({dmlEx.Message}), falling back to CPU.");
 
             op.AppendExecutionProvider_CPU(0);
         }
