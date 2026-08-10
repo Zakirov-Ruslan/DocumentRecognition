@@ -166,19 +166,14 @@ namespace Ocr
         /// Main recognition method using image file path
         /// </summary>
         /// <param name="imgFile">Path to image file</param>
-        /// <param name="padding">Padding from image edges (recommended 10-50). Improves text detection at borders</param>
-        /// <param name="maxSideLen">Maximum side length for image scaling</param>
-        /// <param name="boxScoreThresh">Confidence threshold for text boxes (0.0-1.0)</param>
-        /// <param name="boxThresh">Reliability threshold for text areas</param>
-        /// <param name="unClipRatio">Expansion ratio for text boxes</param>
-        /// <param name="doAngle">Enable text angle detection</param>
-        /// <param name="mostAngle">Support text recognition at any angle (requires doAngle=true)</param>
+        /// <param name="options">Detection options</param>
         /// <returns>OcrResult object with recognition results</returns>
-        public OcrResult Detect(string imgFile, int padding = 50, int maxSideLen = 1024, float boxScoreThresh = 0.5f, float boxThresh = 0.3f, float unClipRatio = 1.6f, bool doAngle = true, bool mostAngle = false, bool onlyHorizontalLines = false)
+        public OcrResult Detect(string imgFile, DetectOptions options)
         {
+            options.Validate();
             using (Mat originSrc = Cv2.ImRead(imgFile, ImreadModes.Color))
             {
-                return DetectCore(padding, maxSideLen, boxScoreThresh, boxThresh, unClipRatio, doAngle, mostAngle, originSrc, onlyHorizontalLines);
+                return DetectCore(originSrc, options);
             }
         }
 
@@ -186,91 +181,73 @@ namespace Ocr
         /// Main recognition method using mat
         /// </summary>
         /// <param name="imgFile">Path to image file</param>
-        /// <param name="padding">Padding from image edges (recommended 10-50). Improves text detection at borders</param>
-        /// <param name="maxSideLen">Maximum side length for image scaling</param>
-        /// <param name="boxScoreThresh">Confidence threshold for text boxes (0.0-1.0)</param>
-        /// <param name="boxThresh">Reliability threshold for text areas</param>
-        /// <param name="unClipRatio">Expansion ratio for text boxes</param>
-        /// <param name="doAngle">Enable text angle detection</param>
-        /// <param name="mostAngle">Support text recognition at any angle (requires doAngle=true)</param>
+        /// <param name="options">Detection options</param>
         /// <returns>OcrResult object with recognition results</returns>
-        public OcrResult Detect(Mat srcMat, int padding = 50, int maxSideLen = 1024, float boxScoreThresh = 0.5f, float boxThresh = 0.3f, float unClipRatio = 1.6f, bool doAngle = true, bool mostAngle = false, bool onlyHorizontalLines = false)
+        public OcrResult Detect(Mat srcMat, DetectOptions options)
         {
-            return DetectCore(padding, maxSideLen, boxScoreThresh, boxThresh, unClipRatio, doAngle, mostAngle, srcMat, onlyHorizontalLines);
+            options.Validate();
+
+            return DetectCore(srcMat, options);
         }
 
         /// <summary>
         /// Recognition method using image byte array
         /// </summary>
         /// <param name="imageBytes">Image byte array</param>
-        /// <param name="padding">Padding from image edges</param>
-        /// <param name="maxSideLen">Maximum side length for image scaling</param>
-        /// <param name="boxScoreThresh">Confidence threshold for text boxes</param>
-        /// <param name="boxThresh">Reliability threshold for text areas</param>
-        /// <param name="unClipRatio">Expansion ratio for text boxes</param>
-        /// <param name="doAngle">Enable text angle detection</param>
-        /// <param name="mostAngle">Support any text angle</param>
+        /// <param name="options">Detection options</param>
         /// <returns>OcrResult object with recognition results</returns>
-        public OcrResult Detect(byte[] imageBytes, int padding = 50, int maxSideLen = 1024, float boxScoreThresh = 0.5f, float boxThresh = 0.3f, float unClipRatio = 1.6f, bool doAngle = true, bool mostAngle = false, bool onlyHorizontalLines = false)
+        public OcrResult Detect(byte[] imageBytes, DetectOptions options)
         {
+            options.Validate();
+
             Mat originSrc = new Mat();
             originSrc = Cv2.ImDecode(imageBytes, ImreadModes.Color);
-            return DetectCore(padding, maxSideLen, boxScoreThresh, boxThresh, unClipRatio, doAngle, mostAngle, originSrc, onlyHorizontalLines);
+
+            return DetectCore(originSrc, options);
         }
 
         /// <summary>
         /// Recognition method using data stream
         /// </summary>
         /// <param name="stream">Stream with image data</param>
-        /// <param name="padding">Padding from image edges</param>
-        /// <param name="maxSideLen">Maximum side length for image scaling</param>
-        /// <param name="boxScoreThresh">Confidence threshold for text boxes</param>
-        /// <param name="boxThresh">Reliability threshold for text areas</param>
-        /// <param name="unClipRatio">Expansion ratio for text boxes</param>
-        /// <param name="doAngle">Enable text angle detection</param>
-        /// <param name="mostAngle">Support any text angle</param>
+        /// <param name="options">Detection options</param>
         /// <returns>OcrResult object with recognition results</returns>
-        public OcrResult Detect(Stream stream, int padding = 50, int maxSideLen = 1024, float boxScoreThresh = 0.5f, float boxThresh = 0.3f, float unClipRatio = 1.6f, bool doAngle = true, bool mostAngle = false, bool onlyHorizontalLines = false)
+        public OcrResult Detect(Stream stream, DetectOptions options)
         {
+            options.Validate();
+
             if (stream.CanSeek)
             {
                 stream.Position = 0;
             }
+
             Mat originSrc = new Mat();
             Cv2.ImDecode(originSrc, ImreadModes.Color);
-            return DetectCore(padding, maxSideLen, boxScoreThresh, boxThresh, unClipRatio, doAngle, mostAngle, originSrc, onlyHorizontalLines);
+
+            return DetectCore(originSrc, options);
         }
 
         /// <summary>
         /// Internal core method that prepares the image and calls the main recognition pipeline
         /// Applies padding, calculates scaling, and prepares the image for processing
         /// </summary>
-        /// <param name="padding">Padding from image edges. Adds blank pixels around the image edges.
-        /// Text often touches image borders, increasing padding (e.g., 10-50) gives text "breathing room",
-        /// significantly improving detection of text at the edges</param>
-        /// <param name="maxSideLen">Maximum side length limit for the image</param>
-        /// <param name="boxScoreThresh">Confidence threshold for text boxes</param>
-        /// <param name="boxThresh">Reliability threshold for text areas</param>
-        /// <param name="unClipRatio">Expansion ratio for text boxes</param>
-        /// <param name="doAngle">Enable text angle detection</param>
-        /// <param name="mostAngle">Support any text angle (only works when doAngle is enabled)</param>
-        /// <param name="originSrc">Source image (Mat)</param>
+        /// <param name="options">Detection options</param>
         /// <returns>OcrResult object with recognition results</returns>
-        private OcrResult DetectCore(int padding, int maxSideLen, float boxScoreThresh, float boxThresh, float unClipRatio, bool doAngle, bool mostAngle, Mat originSrc, bool onlyHorizontalLines = false)
+        private OcrResult DetectCore(Mat originSrc, DetectOptions options)
         {
             int originMaxSide = Math.Max(originSrc.Cols, originSrc.Rows);
 
-            int resize = maxSideLen <= 0 || maxSideLen > originMaxSide
+            int resize = options.MaxSideLen <= 0 || options.MaxSideLen > originMaxSide
                 ? originMaxSide
-                : maxSideLen;
+                : options.MaxSideLen;
 
-            resize += 2 * padding;
-            Rect paddingRect = new Rect(padding, padding, originSrc.Cols, originSrc.Rows);
-            Mat paddingSrc = OcrUtils.MakePadding(originSrc, padding);
+            resize += 2 * options.Padding;
+            Rect paddingRect = new Rect(options.Padding, options.Padding, originSrc.Cols, originSrc.Rows);
+            Mat paddingSrc = OcrUtils.MakePadding(originSrc, options.Padding);
 
             ScaleParam scale = ScaleParam.GetScaleParam(paddingSrc, resize);
 
-            return DetectCore(paddingSrc, paddingRect, scale, boxScoreThresh, boxThresh, unClipRatio, doAngle, mostAngle, onlyHorizontalLines);
+            return DetectCore(paddingSrc, paddingRect, scale, options);
         }
 
         /// <summary>
@@ -286,13 +263,9 @@ namespace Ocr
         /// <param name="src">Source image (Mat)</param>
         /// <param name="originRect">Original image rectangle</param>
         /// <param name="scale">Scaling parameters</param>
-        /// <param name="boxScoreThresh">Confidence threshold for text boxes</param>
-        /// <param name="boxThresh">Reliability threshold for text areas</param>
-        /// <param name="unClipRatio">Expansion ratio for text boxes</param>
-        /// <param name="doAngle">Enable text angle detection</param>
-        /// <param name="mostAngle">Support any text angle</param>
+        /// <param name="options">Detection options</param>
         /// <returns>OcrResult object with recognition results</returns>
-        private OcrResult DetectCore(Mat src, Rect originRect, ScaleParam scale, float boxScoreThresh, float boxThresh, float unClipRatio, bool doAngle, bool mostAngle, bool onlyHorizontalLines = false)
+        private OcrResult DetectCore(Mat src, Rect originRect, ScaleParam scale, DetectOptions options)
         {
             Mat textBoxPaddingImg = src.Clone();
             int thickness = OcrUtils.GetThickness(src);
@@ -300,10 +273,10 @@ namespace Ocr
             var startTicks = DateTime.Now.Ticks;
 
             Console.WriteLine("---------- step: dbNet getTextBoxes ----------");
-            var textBoxes = _dbNet.GetTextBoxes(src, scale, boxScoreThresh, boxThresh, unClipRatio);
+            var textBoxes = _dbNet.GetTextBoxes(src, scale, options.BoxScoreThresh, options.BoxThresh, options.UnClipRatio);
             var dbNetTime = (DateTime.Now.Ticks - startTicks) / 10000F;
 
-            if (onlyHorizontalLines)
+            if (options.OnlyHorizontalLines)
             {
                 textBoxes = OcrUtils.MergeVerticalWithHorizontalLines(textBoxes);
             }
@@ -325,7 +298,7 @@ namespace Ocr
             }
 
             Console.WriteLine("---------- step: angleNet getAngles ----------");
-            List<Angle> angles = _angleNet.GetAngles(partImages, doAngle, mostAngle);
+            List<Angle> angles = _angleNet.GetAngles(partImages, options.DoAngle, options.MostAngle);
 
             // Rotate partImgs
             for (int i = 0; i < partImages.Count; ++i)
@@ -334,6 +307,7 @@ namespace Ocr
                 {
                     partImages[i] = OcrUtils.MatRotateClockWise180(partImages[i]);
                 }
+
                 if (IsDebugImg)
                 {
                     Cv2.ImShow("PartImg({ i})", partImages[i]);

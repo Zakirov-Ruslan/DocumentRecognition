@@ -2,6 +2,7 @@
 using DocumentRecognition.Core.Models.Results;
 using DocumentRecognition.OnnxRecognizer;
 using Ocr;
+using Ocr.Models;
 using OpenCvSharp;
 using System;
 using System.IO;
@@ -56,8 +57,7 @@ namespace DocumentRecognition.Infrastructure.Services
                         {
                             using (Mat roiMat = new Mat(orientedMat, d.Box))
                             {
-                                var ocrResult = _ocrLite.Detect(
-                                    roiMat,
+                                var options = new DetectOptions(
                                     padding: (int)(20 * scale),
                                     doAngle: true,
                                     mostAngle: false,
@@ -67,6 +67,8 @@ namespace DocumentRecognition.Infrastructure.Services
                                     maxSideLen: 1024,
                                     onlyHorizontalLines: true
                                 );
+
+                                var ocrResult = _ocrLite.Detect(roiMat, options);
 
                                 // Cv2.ImShow("Detected boxes", ocrResult.BoxImg);
 

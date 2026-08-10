@@ -122,6 +122,105 @@ namespace Ocr
             return angles;
         }
 
+        public List<Angle> GetAnglesBatched(List<Mat> partImgs, bool doAngle, bool mostAngle, int batchSize = 16)
+        {
+            List<Angle> angles = new List<Angle>();
+
+            if (!doAngle)
+            {
+                for (int i = 0; i < partImgs.Count; i++)
+                {
+                    angles.Add(new Angle { Index = -1, Score = 0F });
+                }
+                return angles;
+            }
+
+            var startTicks = DateTime.Now.Ticks;
+
+            for (int startIdx = 0; startIdx < partImgs.Count; startIdx += batchSize)
+            {
+                int currentBatchSize = Math.Min(batchSize, partImgs.Count - startIdx);
+
+                var batchTensor = new DenseTensor<float>(new[] { currentBatchSize, 3, 48, 192 });
+
+                for (int b = 0; b < currentBatchSize; b++)
+                {
+                    using (Mat resized = new Mat())
+                    {
+                        Cv2.Resize(partImgs[startIdx + b], resized, new Size(192, 48));
+                        var normalized = OcrUtils.SubstractMeanNormalize(resized, _meanValues, _normValues);
+
+                        for (int c = 0; c < 3; c++)
+                            for (int h = 0; h < 48; h++)
+                                for (int w = 0; w < 192; w++)
+                                {
+                                    batchTensor[b, c, h, w] = normalized[0, c, h, w];
+                                }
+                    }
+                }
+
+                // Один вызов Run() на весь батч
+                var inputs = new List<NamedOnnxValue>
+                {
+                    NamedOnnxValue.CreateFromTensor(_inputNames[0], batchTensor)
+                };
+
+                try
+                {
+                    using (var results = _angleNet.Run(inputs))
+                    {
+                        var resultsArray = results.ToArray();
+                        var outputTensor = resultsArray[0].AsTensor<float>();
+                        var dims = outputTensor.Dimensions;
+                        float[] outputData = outputTensor.ToArray();
+
+
+                        for (int b = 0; b < currentBatchSize; b++)
+                        {
+                            int sliceSize = dims[1]; // _angleCols = 2
+                            float[] slice = new float[sliceSize];
+                            for (int i = 0; i < sliceSize; i++)
+                            {
+                                slice[i] = outputData[b * sliceSize + i];
+                            }
+                            angles.Add(ScoreToAngle(slice, _angleCols));
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AngleNet] Batch inference failed: {ex.Message}");
+                    // Fallback
+                    for (int b = 0; b < currentBatchSize; b++)
+                    {
+                        angles.Add(GetAngle(partImgs[startIdx + b]));
+                    }
+                }
+            }
+
+            // Time calcs
+            var totalMs = (DateTime.Now.Ticks - startTicks) / 10000F;
+            var perImgMs = totalMs / partImgs.Count;
+            foreach (var angle in angles)
+            {
+                angle.Time = perImgMs;
+            }
+
+            // Most Possible AngleIndex
+            if (mostAngle)
+            {
+                List<int> angleIndexes = angles.Select(x => x.Index).ToList();
+                double sum = angleIndexes.Sum();
+                int mostAngleIndex = sum < angles.Count / 2.0 ? 0 : 1;
+                for (int i = 0; i < angles.Count; ++i)
+                {
+                    angles[i] = new Angle { Index = mostAngleIndex, Score = angles[i].Score, Time = angles[i].Time };
+                }
+            }
+
+            return angles;
+        }
+
         private Angle GetAngle(Mat src)
         {
             Angle angle = new Angle();
