@@ -18,8 +18,9 @@ namespace DocumentRecognition.OnnxRecognizer
     {
         private readonly InferenceSession _session;
         private readonly string[] _labels = {
-            "technical_requirements", "view",  "title_block",
-            "general_roughness", "configuration_table", "parameter_table", "holes_table"
+            "technical_requirements", "view",  "general_roughness",
+            "title_block_2", "additional_graphs_left", "configuration_table", "title_block_2a",
+            "parameter_table", "holes_table"
         };
 
         private const int InputH = 640;
