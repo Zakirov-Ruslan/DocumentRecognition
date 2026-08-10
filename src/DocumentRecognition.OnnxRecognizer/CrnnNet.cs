@@ -100,6 +100,93 @@ namespace Ocr
             return textLines;
         }
 
+        public List<TextLine> GetTextLinesBatched(List<Mat> partImgs, int batchSize = 16)
+        {
+            List<TextLine> textLines = new List<TextLine>();
+            var startTicks = DateTime.Now.Ticks;
+
+            for (int startIdx = 0; startIdx < partImgs.Count; startIdx += batchSize)
+            {
+                int currentBatchSize = Math.Min(batchSize, partImgs.Count - startIdx);
+                var batchImgs = partImgs.GetRange(startIdx, currentBatchSize);
+
+                var resizedImgs = new List<Mat>();
+                int maxWidth = 0;
+
+                foreach (var img in batchImgs)
+                {
+                    int dstWidth = (int)(img.Cols * (_crnnDstHeight / (float)img.Rows));
+                    maxWidth = Math.Max(maxWidth, dstWidth);
+
+                    Mat resized = new Mat();
+                    Cv2.Resize(img, resized, new Size(dstWidth, _crnnDstHeight));
+                    resizedImgs.Add(resized);
+                }
+
+                var batchTensor = new DenseTensor<float>(new[] { currentBatchSize, 3, _crnnDstHeight, maxWidth });
+
+                for (int b = 0; b < currentBatchSize; b++)
+                {
+                    using (var img = resizedImgs[b])
+                    {
+                        var normalized = OcrUtils.SubstractMeanNormalize(img, _meanValues, _normValues);
+                        int actualWidth = img.Cols;
+
+                        for (int c = 0; c < 3; c++)
+                            for (int h = 0; h < _crnnDstHeight; h++)
+                                for (int w = 0; w < actualWidth; w++)
+                                {
+                                    batchTensor[b, c, h, w] = normalized[0, c, h, w];
+                                }
+                    }
+                }
+
+                foreach (var img in resizedImgs) 
+                    img.Dispose();
+
+                var inputs = new List<NamedOnnxValue>
+                {
+                    NamedOnnxValue.CreateFromTensor(_inputNames[0], batchTensor)
+                };
+
+                try
+                {
+                    using (var results = _crnnNet.Run(inputs))
+                    {
+                        var resultsArray = results.ToArray();
+                        var outputTensor = resultsArray[0].AsTensor<float>();
+                        var dims = outputTensor.Dimensions; // [batch, seq_len, num_classes]
+                        float[] outputData = outputTensor.ToArray();
+
+                        int seqLen = dims[1];
+                        int numClasses = dims[2];
+
+                        for (int b = 0; b < currentBatchSize; b++)
+                        {
+                            float[] slice = new float[seqLen * numClasses];
+                            Array.Copy(outputData, b * slice.Length, slice, 0, slice.Length);
+                            textLines.Add(ScoreToTextLine(slice, seqLen, numClasses));
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[CrnnNet] Batch inference failed: {ex.Message}");
+                    // Fallback 
+                    for (int b = 0; b < currentBatchSize; b++)
+                    {
+                        textLines.Add(GetTextLine(partImgs[startIdx + b]));
+                    }
+                }
+            }
+
+            var totalMs = (DateTime.Now.Ticks - startTicks) / 10000F;
+            var perImgMs = totalMs / partImgs.Count;
+            foreach (var tl in textLines) tl.Time = perImgMs;
+
+            return textLines;
+        }
+
         private TextLine GetTextLine(Mat src)
         {
             TextLine textLine = new TextLine();

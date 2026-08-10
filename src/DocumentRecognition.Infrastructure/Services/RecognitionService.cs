@@ -65,7 +65,9 @@ namespace DocumentRecognition.Infrastructure.Services
                                     boxThresh: 0.2f,
                                     boxScoreThresh: 0.25f,
                                     maxSideLen: 1024,
-                                    onlyHorizontalLines: true
+                                    onlyHorizontalLines: true,
+                                    useBatching: true,
+                                    batchSize: 32
                                 );
 
                                 var ocrResult = _ocrLite.Detect(roiMat, options);

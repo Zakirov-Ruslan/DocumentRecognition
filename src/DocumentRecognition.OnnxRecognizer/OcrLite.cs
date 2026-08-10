@@ -298,7 +298,11 @@ namespace Ocr
             }
 
             Console.WriteLine("---------- step: angleNet getAngles ----------");
-            List<Angle> angles = _angleNet.GetAngles(partImages, options.DoAngle, options.MostAngle);
+            //List<Angle> angles = _angleNet.GetAngles(partImages, options.DoAngle, options.MostAngle);
+
+            List<Angle> angles = options.UseBatching
+                ? _angleNet.GetAnglesBatched(partImages, options.DoAngle, options.MostAngle, options.BatchSize)
+                : _angleNet.GetAngles(partImages, options.DoAngle, options.MostAngle);
 
             // Rotate partImgs
             for (int i = 0; i < partImages.Count; ++i)
@@ -315,7 +319,11 @@ namespace Ocr
             }
 
             Console.WriteLine("---------- step: crnnNet getTextLines ----------");
-            List<TextLine> textLines = _crnnNet.GetTextLines(partImages);
+            //List<TextLine> textLines = _crnnNet.GetTextLines(partImages);
+
+            List<TextLine> textLines = options.UseBatching
+                ? _crnnNet.GetTextLinesBatched(partImages, options.BatchSize)
+                : _crnnNet.GetTextLines(partImages);
 
             List<TextBlock> textBlocks = new List<TextBlock>();
             for (int i = 0; i < textLines.Count; ++i)
