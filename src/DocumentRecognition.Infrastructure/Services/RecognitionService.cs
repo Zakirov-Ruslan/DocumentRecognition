@@ -56,7 +56,7 @@ namespace DocumentRecognition.Infrastructure.Services
                         {
                             using (Mat roiMat = new Mat(orientedMat, d.Box))
                             {
-                                var oceResult = _ocrLite.Detect(
+                                var ocrResult = _ocrLite.Detect(
                                     roiMat,
                                     padding: (int)(20 * scale),
                                     doAngle: true,
@@ -64,10 +64,13 @@ namespace DocumentRecognition.Infrastructure.Services
                                     unClipRatio: 1.2f,
                                     boxThresh: 0.2f,
                                     boxScoreThresh: 0.25f,
-                                    maxSideLen: 1024
+                                    maxSideLen: 1024,
+                                    onlyHorizontalLines: true
                                 );
 
-                                return oceResult.StrRes;
+                                // Cv2.ImShow("Detected boxes", ocrResult.BoxImg);
+
+                                return ocrResult.StrRes;
                             }
                         }).ToArray();
 

@@ -182,5 +182,229 @@ namespace Ocr
             return src;
         }
 
+        /// <summary>
+        /// Обрабатывает вертикальные и квадратные боксы: ищет пересекающиеся горизонтальные боксы и склеивает их в единые строки.
+        /// </summary>
+        public static List<TextBox> MergeVerticalWithHorizontalLines(List<TextBox> textBoxes)
+        {
+            if (textBoxes == null || textBoxes.Count == 0) return textBoxes;
+
+            var result = new List<TextBox>();
+            var horizontalBoxes = new List<TextBox>();
+            var verticalBoxes = new List<TextBox>();
+            var squareBoxes = new List<TextBox>(); // Квадратные и короткие боксы (например, отдельные цифры)
+
+            // 1. Классифицируем боксы
+            foreach (var box in textBoxes)
+            {
+                var rect = GetBoundingBox(box.Points);
+                // Горизонтальные: ширина заметно больше высоты
+                if (rect.Width > rect.Height * 2.0f)
+                {
+                    horizontalBoxes.Add(box);
+                }
+                // Вертикальные: высота заметно больше ширины
+                else if (rect.Height > rect.Width * 1.5f)
+                {
+                    verticalBoxes.Add(box);
+                }
+                // Остальные (квадратные, короткие)
+                else
+                {
+                    squareBoxes.Add(box);
+                }
+            }
+
+            var mergedHBoxIndices = new HashSet<int>();
+            var hBoxAttachments = new Dictionary<int, List<TextBox>>();
+            for (int i = 0; i < horizontalBoxes.Count; i++) hBoxAttachments[i] = new List<TextBox>();
+
+            // 2. Обрабатываем ВЕРТИКАЛЬНЫЕ боксы (нарезаем их по высоте горизонтальных строк)
+            foreach (var vBox in verticalBoxes)
+            {
+                var vRect = GetBoundingBox(vBox.Points);
+                var matchingHBoxes = new List<KeyValuePair<TextBox, int>>();
+
+                for (int i = 0; i < horizontalBoxes.Count; i++)
+                {
+                    var hRect = GetBoundingBox(horizontalBoxes[i].Points);
+                    int yOverlap = Math.Min(vRect.Bottom, hRect.Bottom) - Math.Max(vRect.Top, hRect.Top);
+
+                    if (yOverlap > 0)
+                    {
+                        float overlapRatio = hRect.Height > 0 ? (float)yOverlap / hRect.Height : 0;
+                        int xGap = Math.Max(0, Math.Max(vRect.Left, hRect.Left) - Math.Min(vRect.Right, hRect.Right));
+
+                        // Кандидат должен быть преимущественно слева от текста или пересекаться с ним
+                        bool isLeftOrOverlapping = vRect.Left < hRect.Left + hRect.Width * 0.5f;
+                        int xGapTolerance = (int)Math.Max(hRect.Height * 20, 50); // Минимум 50px допуска
+
+                        if (overlapRatio > 0.5f && xGap < xGapTolerance && isLeftOrOverlapping)
+                        {
+                            matchingHBoxes.Add(new KeyValuePair<TextBox, int>(horizontalBoxes[i], i));
+                        }
+                    }
+                }
+
+                if (matchingHBoxes.Count > 0)
+                {
+                    var sortedMatches = matchingHBoxes.OrderBy(x => GetBoundingBox(x.Key.Points).Top).ToList();
+
+                    foreach (var match in sortedMatches)
+                    {
+                        mergedHBoxIndices.Add(match.Value);
+                        var hBox = match.Key;
+                        var hRect = GetBoundingBox(hBox.Points);
+
+                        int newXMin = Math.Min(vRect.Left, hRect.Left);
+                        int newXMax = Math.Max(vRect.Right, hRect.Right);
+                        int newYMin = hRect.Top;
+                        int newYMax = hRect.Bottom;
+
+                        var newPoints = new List<Point>
+                {
+                    new Point(newXMin, newYMin),
+                    new Point(newXMax, newYMin),
+                    new Point(newXMax, newYMax),
+                    new Point(newXMin, newYMax)
+                };
+
+                        result.Add(new TextBox
+                        {
+                            Points = newPoints,
+                            Score = Math.Max(vBox.Score, hBox.Score)
+                        });
+                    }
+                }
+                else
+                {
+                    // Если вертикальный бокс ни с чем не пересекся, оставляем его как есть
+                    result.Add(vBox);
+                }
+            }
+
+            // 3. Обрабатываем КВАДРАТНЫЕ боксы (ищем строку по совпадению центра по Y)
+            var usedSquareIndices = new HashSet<int>();
+            for (int j = 0; j < squareBoxes.Count; j++)
+            {
+                var sBox = squareBoxes[j];
+                var sRect = GetBoundingBox(sBox.Points);
+                float sCenterY = sRect.Top + sRect.Height / 2.0f;
+
+                TextBox bestMatchHBox = null;
+                int bestMatchIndex = -1;
+                float minDistance = float.MaxValue;
+
+                for (int i = 0; i < horizontalBoxes.Count; i++)
+                {
+                    // Пропускаем строки, которые уже были "забраны" вертикальными боксами
+                    if (mergedHBoxIndices.Contains(i)) continue;
+
+                    var hRect = GetBoundingBox(horizontalBoxes[i].Points);
+                    float hCenterY = hRect.Top + hRect.Height / 2.0f;
+                    float yDiff = Math.Abs(sCenterY - hCenterY);
+
+                    int xGap = Math.Max(0, Math.Max(hRect.Left, sRect.Left) - Math.Min(hRect.Right, sRect.Right));
+                    bool isLeftOrOverlapping = sRect.Left < hRect.Left + hRect.Width * 0.5f;
+
+                    // Допуски с защитой от слишком мелких шрифтов
+                    float yTolerance = Math.Max(hRect.Height * 0.5f, 5.0f);
+                    int xGapTolerance = (int)Math.Max(hRect.Height * 20, 50);
+
+                    // Критерий совпадения для квадратного бокса
+                    if (yDiff <= yTolerance && xGap < xGapTolerance && isLeftOrOverlapping)
+                    {
+                        if (yDiff < minDistance)
+                        {
+                            minDistance = yDiff;
+                            bestMatchHBox = horizontalBoxes[i];
+                            bestMatchIndex = i;
+                        }
+                    }
+                }
+
+                if (bestMatchHBox != null)
+                {
+                    hBoxAttachments[bestMatchIndex].Add(sBox);
+                    usedSquareIndices.Add(j);
+                }
+            }
+
+            // 4. Собираем оставшиеся горизонтальные боксы с их квадратными привязками
+            for (int i = 0; i < horizontalBoxes.Count; i++)
+            {
+                if (mergedHBoxIndices.Contains(i)) continue;
+
+                var hBox = horizontalBoxes[i];
+                var attachments = hBoxAttachments[i];
+
+                if (attachments.Count > 0)
+                {
+                    var hRect = GetBoundingBox(hBox.Points);
+                    int newXMin = hRect.Left;
+                    int newXMax = hRect.Right;
+                    int newYMin = hRect.Top;
+                    int newYMax = hRect.Bottom;
+
+                    float maxScore = hBox.Score;
+
+                    foreach (var sBox in attachments)
+                    {
+                        var sRect = GetBoundingBox(sBox.Points);
+                        newXMin = Math.Min(newXMin, sRect.Left); // Расширяем бокс влево, захватывая цифры
+                        newYMin = Math.Min(newYMin, sRect.Top);
+                        newYMax = Math.Max(newYMax, sRect.Bottom);
+                        if (sBox.Score > maxScore) maxScore = sBox.Score;
+                    }
+
+                    var newPoints = new List<Point>
+            {
+                new Point(newXMin, newYMin),
+                new Point(newXMax, newYMin),
+                new Point(newXMax, newYMax),
+                new Point(newXMin, newYMax)
+            };
+
+                    result.Add(new TextBox
+                    {
+                        Points = newPoints,
+                        Score = maxScore
+                    });
+                }
+                else
+                {
+                    result.Add(hBox);
+                }
+            }
+
+            // 5. Добавляем непривязанные квадратные боксы (шум или одиночные символы)
+            for (int j = 0; j < squareBoxes.Count; j++)
+            {
+                if (!usedSquareIndices.Contains(j))
+                {
+                    result.Add(squareBoxes[j]);
+                }
+            }
+
+            // Сортируем итоговый список боксов (сверху-вниз, затем слева-направо) для сохранения порядка чтения
+            result = result.OrderBy(b => GetBoundingBox(b.Points).Top)
+                           .ThenBy(b => GetBoundingBox(b.Points).Left)
+                           .ToList();
+
+            return result;
+        }
+
+        /// <summary>
+        /// Возвращает ограничивающий прямоугольник (Bounding Box) для списка точек
+        /// </summary>
+        public static Rect GetBoundingBox(List<Point> points)
+        {
+            int minX = points.Min(p => p.X);
+            int maxX = points.Max(p => p.X);
+            int minY = points.Min(p => p.Y);
+            int maxY = points.Max(p => p.Y);
+
+            return new Rect(minX, minY, maxX - minX, maxY - minY);
+        }
     }
 }
