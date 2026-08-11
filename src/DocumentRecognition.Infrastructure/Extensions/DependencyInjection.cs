@@ -42,6 +42,15 @@ namespace DocumentRecognition.Infrastructure.Extensions
                 return new DocOrientationClassifier(modelPath);
             });
 
+            services.AddScoped<WiredTableCellDetector>(sp =>
+            {
+                var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
+                var modelsPath = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
+                var modelPath = Path.Combine(modelsPath, settings.WiredTableCellDetModel);
+
+                return new WiredTableCellDetector(modelPath);
+            });
+
             services.AddScoped<OcrLite>(sp =>
             {
                 var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
@@ -74,6 +83,7 @@ namespace DocumentRecognition.Infrastructure.Extensions
         public string DictFile { get; set; } = "ppocrv5_cyrillic_dict.txt";
         public string DrawingLayoutDetModel { get; set; } = "drawing_det_v4.onnx";
         public string DocOrientationClsModel { get; set; } = "techdoc_ori_cls.onnx";
+        public string WiredTableCellDetModel { get; set; } = "RT-DETR-L_wired_table_cell_det.onnx";
 
     }
 }

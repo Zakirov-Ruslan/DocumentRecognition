@@ -149,7 +149,7 @@ namespace DocumentRecognition.OnnxRecognizer
             }
         }
 
-        public byte[] DrawDetections(Mat srcMat, List<DrawingLayoutDetection> detections)
+        public Mat DrawDetections(Mat srcMat, List<DrawingLayoutDetection> detections)
         {
             foreach (var det in detections)
             {
@@ -161,7 +161,7 @@ namespace DocumentRecognition.OnnxRecognizer
                     HersheyFonts.HersheySimplex, 0.5, new Scalar(0, 0, 255), 1);
             }
 
-            return srcMat.ToBytes();
+            return srcMat;
         }
 
         public void Dispose() => _session?.Dispose();

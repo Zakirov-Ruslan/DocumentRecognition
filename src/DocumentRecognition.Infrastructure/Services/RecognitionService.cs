@@ -15,15 +15,17 @@ namespace DocumentRecognition.Infrastructure.Services
     {
         private readonly DocOrientationClassifier _docOrientationClassifier;
         private readonly DrawingLayoutDetector _drawingLayoutDetector;
+        private readonly WiredTableCellDetector _wiredTableCellDetector;
         private readonly OcrLite _ocrLite;
         private readonly Lazy<Task> _initTask;
 
-        public RecognitionService(OcrLite ocrLite, DrawingLayoutDetector drawingLayoutDetector, DocOrientationClassifier docOrientationClassifier)
+        public RecognitionService(OcrLite ocrLite, DrawingLayoutDetector drawingLayoutDetector, DocOrientationClassifier docOrientationClassifier, WiredTableCellDetector wiredTableCellDetector)
         {
             _ocrLite = ocrLite;
             _initTask = new Lazy<Task>(() => _ocrLite.InitModels());
             _drawingLayoutDetector = drawingLayoutDetector;
             _docOrientationClassifier = docOrientationClassifier;
+            _wiredTableCellDetector = wiredTableCellDetector;
         }
 
         public async Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi)
@@ -51,8 +53,14 @@ namespace DocumentRecognition.Infrastructure.Services
                 {
                     var layoutDetections = _drawingLayoutDetector.Detect(orientedMat);
 
-                    var technicalRequirements = layoutDetections.Where(d => d.Label == "technical_requirements")
-                        .OrderByDescending(d => d.Box.X)
+                    var detectionsDict = layoutDetections
+                        .GroupBy(d => d.Label)
+                        .ToDictionary(gr => gr.Key);
+
+                    string[] techReqs = null;
+                    if (detectionsDict.TryGetValue("technical_requirements", out var technicalRequirements))
+                    {
+                        techReqs = technicalRequirements.OrderByDescending(d => d.Box.X)
                         .Select(d =>
                         {
                             using (Mat roiMat = new Mat(orientedMat, d.Box))
@@ -72,15 +80,62 @@ namespace DocumentRecognition.Infrastructure.Services
 
                                 var ocrResult = _ocrLite.Detect(roiMat, options);
 
-                                // Cv2.ImShow("Detected boxes", ocrResult.BoxImg);
-
                                 return ocrResult.StrRes;
                             }
                         }).ToArray();
+                    }
+                    
+                    if (detectionsDict.TryGetValue("title_block_2", out var titleBlocks))
+                    {
+                        var titleBlock = titleBlocks.OrderByDescending(tb => tb.Box.X + tb.Box.Y).First();
 
-                    byte[] debugImage = _drawingLayoutDetector.DrawDetections(orientedMat, layoutDetections);
+                        using (Mat roiMat = new Mat(orientedMat, titleBlock.Box))
+                        {
+                            var titleBlockCells = _wiredTableCellDetector.Detect(roiMat);
 
-                    DrawingRecognitionResult res = new DrawingRecognitionResult(null, technicalRequirements, debugImage);
+                            _wiredTableCellDetector.DrawDetections(roiMat, titleBlockCells);
+                        }
+                    }
+
+                    if (detectionsDict.TryGetValue("additional_graphs_left", out var additionalGraphsLeftGroup))
+                    {
+                        var additionalGraphs = additionalGraphsLeftGroup.OrderBy(gr => gr.Box.Y).First();
+
+                        using (Mat roiMat = new Mat(orientedMat, additionalGraphs.Box))
+                        {
+                            var additionalGraphsLeftCells = _wiredTableCellDetector.Detect(roiMat);
+
+                            _wiredTableCellDetector.DrawDetections(roiMat, additionalGraphsLeftCells);
+                        }
+                    }
+
+                    if (detectionsDict.TryGetValue("configuration_table", out var configurationTableGroup))
+                    {
+                        var configurationTable = configurationTableGroup.First();
+
+                        using (Mat roiMat = new Mat(orientedMat, configurationTable.Box))
+                        {
+                            var configTableCells = _wiredTableCellDetector.Detect(roiMat);
+
+                            _wiredTableCellDetector.DrawDetections(roiMat, configTableCells);
+                        }
+                    }
+
+                    if (detectionsDict.TryGetValue("parameter_table", out var parameterTableGroup))
+                    {
+                        var parameterTable = parameterTableGroup.First();
+
+                        using (Mat roiMat = new Mat(orientedMat, parameterTable.Box))
+                        {
+                            var parameterTableCells = _wiredTableCellDetector.Detect(roiMat);
+
+                            _wiredTableCellDetector.DrawDetections(roiMat, parameterTableCells);
+                        }
+                    }
+
+                    var debugImage = _drawingLayoutDetector.DrawDetections(orientedMat, layoutDetections);
+
+                    DrawingRecognitionResult res = new DrawingRecognitionResult(null, techReqs, debugImage.ToBytes());
 
                     return res;
                 }
