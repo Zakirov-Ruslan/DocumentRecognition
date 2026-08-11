@@ -16,7 +16,7 @@ using Size = OpenCvSharp.Size;
 
 namespace Ocr
 {
-    internal class AngleNet : IDisposable
+    internal class TextLineOrientationClassifier : IDisposable
     {
         private readonly float[] _meanValues = { 127.5F, 127.5F, 127.5F };
         private readonly float[] _normValues = { 1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F };
@@ -24,9 +24,9 @@ namespace Ocr
         private InferenceSession _angleNet;
         private List<string> _inputNames;
 
-        internal AngleNet() { }
+        internal TextLineOrientationClassifier() { }
 
-        ~AngleNet()
+        ~TextLineOrientationClassifier()
         {
             _angleNet.Dispose();
         }

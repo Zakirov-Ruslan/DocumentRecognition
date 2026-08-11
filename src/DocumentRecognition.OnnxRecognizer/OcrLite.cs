@@ -22,9 +22,9 @@ namespace Ocr
     {
 
         // Internal OCR components
-        private DbNet _dbNet;          // Neural network for detecting text areas
-        private AngleNet _angleNet;    // Neural network for determining text orientation
-        private CrnnNet _crnnNet;      // Neural network for character recognition
+        private TextDetector _dbNet;
+        private TextLineOrientationClassifier _angleNet;
+        private TextRecognizer _crnnNet;
 
         /// <summary>
         /// Debug mode - displays intermediate images during processing
@@ -68,9 +68,9 @@ namespace Ocr
         /// </summary>
         public OcrLite()
         {
-            _dbNet = new DbNet();
-            _angleNet = new AngleNet();
-            _crnnNet = new CrnnNet();
+            _dbNet = new TextDetector();
+            _angleNet = new TextLineOrientationClassifier();
+            _crnnNet = new TextRecognizer();
         }
 
         /// <summary>

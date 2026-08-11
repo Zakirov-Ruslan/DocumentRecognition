@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace Ocr
 {
-    internal class CrnnNet : IDisposable
+    internal class TextRecognizer : IDisposable
     {
         private readonly float[] _meanValues = { 127.5F, 127.5F, 127.5F };
         private readonly float[] _normValues = { 1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F };
@@ -26,9 +26,9 @@ namespace Ocr
         private List<string> _keys;
         private List<string> _inputNames;
 
-        internal CrnnNet() { }
+        internal TextRecognizer() { }
 
-        ~CrnnNet()
+        ~TextRecognizer()
         {
             _crnnNet?.Dispose();
         }

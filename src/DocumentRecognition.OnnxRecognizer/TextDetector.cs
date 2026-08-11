@@ -20,7 +20,7 @@ using TextBox = Ocr.Models.TextBox;
 
 namespace Ocr
 {
-    internal class DbNet : IDisposable
+    internal class TextDetector : IDisposable
     {
         private readonly float[] _meanValues = { 0.485F * 255F, 0.456F * 255F, 0.406F * 255F };
         private readonly float[] _normValues = { 1.0F / 0.229F / 255.0F, 1.0F / 0.224F / 255.0F, 1.0F / 0.225F / 255.0F };
@@ -29,9 +29,9 @@ namespace Ocr
 
         private List<string> _inputNames;
 
-        internal DbNet() { }
+        internal TextDetector() { }
 
-        ~DbNet()
+        ~TextDetector()
         {
             _dbNet.Dispose();
         }
