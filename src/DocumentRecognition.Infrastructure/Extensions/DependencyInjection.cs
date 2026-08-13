@@ -79,7 +79,7 @@ namespace DocumentRecognition.Infrastructure.Extensions
         public string ModelsDir { get; set; } = "OnnxModels";
         public string DetModel { get; set; } = "ch_PP-OCRv5_det_server.onnx";
         public string ClsModel { get; set; } = "ch_PP-LCNet_x1_0_textline_ori_cls_server.onnx";
-        public string RecModel { get; set; } = "rec_gost_cyrillic_v62.onnx";
+        public string RecModel { get; set; } = "rec_gost_cyrillic_v7.onnx";
         public string DictFile { get; set; } = "ppocrv5_cyrillic_dict.txt";
         public string DrawingLayoutDetModel { get; set; } = "drawing_det_v4.onnx";
         public string DocOrientationClsModel { get; set; } = "techdoc_ori_cls.onnx";
