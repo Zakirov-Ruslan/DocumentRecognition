@@ -4,24 +4,18 @@ using System.Collections.Generic;
 
 namespace DocumentRecognition.Core.Models.Results
 {
-    public class TileBlock
+    public class TitleBlock
     {
-        public string Name { get; private set; }
-        public string Designation { get; private set; }
-        public int DocumentType { get; private set; }
-        public List<Signature> Signatures { get; private set; }
-        public int SheetNumber { get; private set; }
-        public int TotalSheets { get; private set; }
+        public string Name { get; set; }
+        public string Designation { get; set; }
+        public int DocumentType { get; set; }
+        public List<Signature> Signatures { get; set; }
+        public int SheetNumber { get; set; }
+        public int TotalSheets { get; set; }
+        public string Mass { get; set; }
+        public string Scale { get; set; }
 
-        public TileBlock(string name, string designation, int documentType, List<Signature> signatures, int sheetNumber, int totalSheets)
-        {
-            Name = name;
-            Designation = designation;
-            DocumentType = documentType;
-            Signatures = signatures;
-            SheetNumber = sheetNumber;
-            TotalSheets = totalSheets;
-        }
+        public TitleBlock() { }
     }
 
     public class Signature
