@@ -8,6 +8,7 @@ using OpenCvSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -18,7 +19,7 @@ namespace Ocr
     /// Main class for Optical Character Recognition (OCR)
     /// Combines three neural network components: text detector, angle classifier, and character recognizer
     /// </summary>
-    public partial class OcrLite
+    public partial class OcrLite : IDisposable
     {
 
         // Internal OCR components
@@ -329,7 +330,12 @@ namespace Ocr
             for (int i = 0; i < textLines.Count; ++i)
             {
                 TextBlock textBlock = new TextBlock();
-                textBlock.BoxPoints = textBoxes[i].Points;
+
+                int padding = options.Padding;
+                textBlock.BoxPoints = textBoxes[i].Points
+                    .Select(p => new Point(Math.Max(0, p.X - padding), Math.Max(0, p.Y - padding)))
+                    .ToList();
+
                 textBlock.BoxScore = textBoxes[i].Score;
                 textBlock.AngleIndex = angles[i].Index;
                 textBlock.AngleScore = angles[i].Score;
@@ -360,5 +366,11 @@ namespace Ocr
             return ocrResult;
         }
 
+        public void Dispose()
+        {
+            _dbNet?.Dispose();
+            _angleNet?.Dispose();
+            _crnnNet?.Dispose();
+        }
     }
 }

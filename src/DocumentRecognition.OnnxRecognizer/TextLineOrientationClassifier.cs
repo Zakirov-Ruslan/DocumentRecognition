@@ -26,11 +26,6 @@ namespace Ocr
 
         internal TextLineOrientationClassifier() { }
 
-        ~TextLineOrientationClassifier()
-        {
-            _angleNet.Dispose();
-        }
-
         public async Task InitModel(string path, int numThread)
         {
             try
@@ -295,7 +290,7 @@ namespace Ocr
 
         public void Dispose()
         {
-            _angleNet.Dispose();
+            _angleNet?.Dispose();
         }
     }
 }

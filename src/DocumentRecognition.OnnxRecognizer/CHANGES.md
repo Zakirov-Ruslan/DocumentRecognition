@@ -8,3 +8,4 @@
 - Models moved to separated files
 - Added some models like document orientation classification and others
 - Added DirectMl processing
+- Removed padding from returned textbox positions

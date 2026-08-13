@@ -28,11 +28,6 @@ namespace Ocr
 
         internal TextRecognizer() { }
 
-        ~TextRecognizer()
-        {
-            _crnnNet?.Dispose();
-        }
-
         public async Task InitModel(string path, string keysPath, int numThread)
         {
             try

@@ -31,11 +31,6 @@ namespace Ocr
 
         internal TextDetector() { }
 
-        ~TextDetector()
-        {
-            _dbNet.Dispose();
-        }
-
         public async Task InitModel(string path, int numThread)
         {
             try
@@ -73,33 +68,37 @@ namespace Ocr
 
         public List<TextBox> GetTextBoxes(Mat src, ScaleParam scale, float boxScoreThresh, float boxThresh, float unClipRatio)
         {
-            Mat srcResize = new Mat();
-            Cv2.Resize(src, srcResize, new Size(scale.DstWidth, scale.DstHeight));
-
-            Tensor<float> inputTensors = OcrUtils.SubstractMeanNormalize(srcResize, _meanValues, _normValues);
-
-            var inputs = new List<NamedOnnxValue>
+            using (Mat srcResize = new Mat())
             {
-                NamedOnnxValue.CreateFromTensor(_inputNames[0], inputTensors)
-            };
-            try
-            {
-                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = _dbNet.Run(inputs))
+                Cv2.Resize(src, srcResize, new Size(scale.DstWidth, scale.DstHeight));
+
+                Tensor<float> inputTensors = OcrUtils.SubstractMeanNormalize(srcResize, _meanValues, _normValues);
+
+                var inputs = new List<NamedOnnxValue>
                 {
-                    var resultsArray = results.ToArray();
-                    Console.WriteLine(resultsArray);
+                    NamedOnnxValue.CreateFromTensor(_inputNames[0], inputTensors)
+                };
 
-                    var textBoxes = GetTextBoxes(resultsArray, srcResize.Rows, srcResize.Cols, scale, boxScoreThresh, boxThresh, unClipRatio);
+                try
+                {
+                    using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = _dbNet.Run(inputs))
+                    {
+                        var resultsArray = results.ToArray();
+                        Console.WriteLine(resultsArray);
 
-                    return textBoxes;
+                        var textBoxes = GetTextBoxes(resultsArray, srcResize.Rows, srcResize.Cols, scale, boxScoreThresh, boxThresh, unClipRatio);
+
+                        return textBoxes;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message + ex.StackTrace);
+                    //throw;
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message + ex.StackTrace);
-                //throw;
-            }
-            return null;
+
+            return new List<TextBox>();
         }
 
         private static List<TextBox> GetTextBoxes(DisposableNamedOnnxValue[] outputTensor, int rows, int cols, ScaleParam s, float boxScoreThresh, float boxThresh, float unClipRatio)
@@ -395,7 +394,7 @@ namespace Ocr
 
         public void Dispose()
         {
-            _dbNet.Dispose();
+            _dbNet?.Dispose();
         }
     }
 }
