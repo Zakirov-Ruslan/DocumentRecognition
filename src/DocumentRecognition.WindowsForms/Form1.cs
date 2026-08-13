@@ -43,7 +43,11 @@ namespace DocumentRecognition.WindowsForms
                         pictureBox1.Image = Image.FromStream(ms);
                     }
 
-                    richTextBox1.Text = string.Join("\n", drawingRecResult.TechnicalRequirements );
+                    richTextBox1.Text = $"Обозначение: {drawingRecResult.TitleBlock.Designation}" +
+                        $"\nНаименование: {drawingRecResult.TitleBlock.Name}" +
+                        $"\nМасса: {drawingRecResult.TitleBlock.Mass}" +
+                        $"\nМасштаб: {drawingRecResult.TitleBlock.Scale}" +
+                        $"\n\nТехнические требования:\n" + string.Join("\n", drawingRecResult.TechnicalRequirements );
                 }
                 catch (Exception ex)
                 {

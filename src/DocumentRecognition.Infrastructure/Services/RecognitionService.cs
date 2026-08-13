@@ -5,6 +5,7 @@ using Ocr;
 using Ocr.Models;
 using OpenCvSharp;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -69,7 +70,7 @@ namespace DocumentRecognition.Infrastructure.Services
                                     padding: (int)(20 * scale),
                                     doAngle: true,
                                     mostAngle: false,
-                                    unClipRatio: 1.2f,
+                                    unClipRatio: 1.5f,
                                     boxThresh: 0.2f,
                                     boxScoreThresh: 0.25f,
                                     maxSideLen: 1024,
@@ -80,20 +81,41 @@ namespace DocumentRecognition.Infrastructure.Services
 
                                 var ocrResult = _ocrLite.Detect(roiMat, options);
 
+                                // Cv2.ImShow("tech reqs", ocrResult.BoxImg);
+
                                 return ocrResult.StrRes;
                             }
                         }).ToArray();
                     }
-                    
+
+                    Dictionary<string, CellMatchResult> matchedCells = null;
                     if (detectionsDict.TryGetValue("title_block_2", out var titleBlocks))
                     {
                         var titleBlock = titleBlocks.OrderByDescending(tb => tb.Box.X + tb.Box.Y).First();
 
                         using (Mat roiMat = new Mat(orientedMat, titleBlock.Box))
                         {
-                            var titleBlockCells = _wiredTableCellDetector.Detect(roiMat);
+                            var ocrOptions = new DetectOptions(
+                                padding: 50,
+                                doAngle: true,
+                                mostAngle: false,
+                                unClipRatio: 1.5f, 
+                                boxThresh: 0.3f,
+                                boxScoreThresh: 0.3f,
+                                maxSideLen: 1024,
+                                onlyHorizontalLines: false,
+                                useBatching: true,
+                                batchSize: 32
+                            );
 
-                            _wiredTableCellDetector.DrawDetections(roiMat, titleBlockCells);
+                            var titleBlockOcrResult = _ocrLite.Detect(roiMat, ocrOptions);
+
+                            var processor = new TitleBlockProcessor();
+                            matchedCells = processor.ProcessTitleBlockWithOcr(roiMat, titleBlockOcrResult);
+
+                            processor.DrawDebugOcr(roiMat, matchedCells, titleBlockOcrResult);
+
+                            // Cv2.ImShow("Detected boxes", roiMat);
                         }
                     }
 
@@ -135,7 +157,20 @@ namespace DocumentRecognition.Infrastructure.Services
 
                     var debugImage = _drawingLayoutDetector.DrawDetections(orientedMat, layoutDetections);
 
-                    DrawingRecognitionResult res = new DrawingRecognitionResult(null, techReqs, debugImage.ToBytes());
+                    string name = matchedCells.ContainsKey("name") ? matchedCells["name"].Text : default;
+                    string designation = matchedCells.ContainsKey("designation") ? matchedCells["designation"].Text : default;
+                    string mass = matchedCells.ContainsKey("mass") ? matchedCells["mass"].Text : default;
+                    string titleBlockScale = matchedCells.ContainsKey("scale") ? matchedCells["scale"].Text : default;
+
+                    TitleBlock titleBlockResult = new TitleBlock()
+                    { 
+                        Designation = designation,
+                        Name = name,
+                        Mass = mass,
+                        Scale = titleBlockScale
+                    };
+
+                    DrawingRecognitionResult res = new DrawingRecognitionResult(titleBlockResult, techReqs, debugImage.ToBytes());
 
                     return res;
                 }
