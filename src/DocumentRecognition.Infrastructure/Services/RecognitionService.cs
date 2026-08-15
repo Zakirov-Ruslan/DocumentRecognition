@@ -157,17 +157,38 @@ namespace DocumentRecognition.Infrastructure.Services
 
                     var debugImage = _drawingLayoutDetector.DrawDetections(orientedMat, layoutDetections);
 
-                    string name = matchedCells.ContainsKey("name") ? matchedCells["name"].Text : default;
-                    string designation = matchedCells.ContainsKey("designation") ? matchedCells["designation"].Text : default;
-                    string mass = matchedCells.ContainsKey("mass") ? matchedCells["mass"].Text : default;
-                    string titleBlockScale = matchedCells.ContainsKey("scale") ? matchedCells["scale"].Text : default;
+                    List<Signature> signatures = new List<Signature>();
+                    for (int row = 5; row <= 10; row++)
+                    {
+                        string signatoryText = matchedCells[$"left_r{row}_c{0}"].Text;
+
+                        if (string.IsNullOrEmpty(signatoryText))
+                            continue;
+
+                        string name = matchedCells[$"left_r{row}_c{1}"].Text;
+                        DateTime.TryParse(matchedCells[$"left_r{row}_c{3}"].Text, out var signDate);
+
+                        Signature signature = new Signature()
+                        {
+                            SignatoryText = signatoryText,
+                            Name = name,
+                            Date = signDate
+                        };
+
+                        signatures.Add(signature);
+                    }
 
                     TitleBlock titleBlockResult = new TitleBlock()
                     { 
-                        Designation = designation,
-                        Name = name,
-                        Mass = mass,
-                        Scale = titleBlockScale
+                        Designation = matchedCells.ContainsKey("designation") ? matchedCells["designation"].Text : default,
+                        Name = matchedCells.ContainsKey("name") ? matchedCells["name"].Text : default,
+                        Mass = matchedCells.ContainsKey("mass") ? matchedCells["mass"].Text : default,
+                        Scale = matchedCells.ContainsKey("scale") ? matchedCells["scale"].Text : default,
+                        Material = matchedCells.ContainsKey("material") ? matchedCells["material"].Text : default,
+                        SheetNumber = matchedCells.ContainsKey("sheet_number") ? matchedCells["sheet_number"].Text : default,
+                        TotalSheets = matchedCells.ContainsKey("total_sheets") ? matchedCells["total_sheets"].Text : default,
+
+                        Signatures = signatures
                     };
 
                     DrawingRecognitionResult res = new DrawingRecognitionResult(titleBlockResult, techReqs, debugImage.ToBytes());

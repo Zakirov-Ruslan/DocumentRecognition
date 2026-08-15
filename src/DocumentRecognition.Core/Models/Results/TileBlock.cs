@@ -10,25 +10,22 @@ namespace DocumentRecognition.Core.Models.Results
         public string Designation { get; set; }
         public int DocumentType { get; set; }
         public List<Signature> Signatures { get; set; }
-        public int SheetNumber { get; set; }
-        public int TotalSheets { get; set; }
+        public string SheetNumber { get; set; }
+        public string TotalSheets { get; set; }
         public string Mass { get; set; }
         public string Scale { get; set; }
+        public string Material { get; set; }
 
         public TitleBlock() { }
     }
 
     public class Signature
     {
-        public Signatories Signatory { get; private set; }
-        public string Name { get; private set; }
-        public DateTime Date { get; private set; }
+        public Signatories Signatory { get; set; }
+        public string SignatoryText { get; set; }
+        public string Name { get; set; }
+        public DateTime? Date { get; set; }
 
-        public Signature(Signatories signatory, DateTime date, string name)
-        {
-            Signatory = signatory;
-            Date = date;
-            Name = name;
-        }
+        public Signature() { }
     }
 }

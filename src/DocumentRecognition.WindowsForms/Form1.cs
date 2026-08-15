@@ -47,6 +47,11 @@ namespace DocumentRecognition.WindowsForms
                         $"\nНаименование: {drawingRecResult.TitleBlock.Name}" +
                         $"\nМасса: {drawingRecResult.TitleBlock.Mass}" +
                         $"\nМасштаб: {drawingRecResult.TitleBlock.Scale}" +
+                        $"\nМатериал: {drawingRecResult.TitleBlock.Material}" +
+                        $"\nЛист: {drawingRecResult.TitleBlock.SheetNumber}" +
+                        $"\nЛистов: {drawingRecResult.TitleBlock.TotalSheets}" +
+                        $"\n\nПодписи:" +
+                        $"\n{string.Join("\n", drawingRecResult.TitleBlock.Signatures.Select(s => $"{s.SignatoryText} | {s.Name} | {s.Date?.ToShortDateString()}"))}" +
                         $"\n\nТехнические требования:\n" + string.Join("\n", drawingRecResult.TechnicalRequirements );
                 }
                 catch (Exception ex)

@@ -106,8 +106,14 @@ namespace DocumentRecognition.Infrastructure.Services
             cells.Add(new StampCellTemplate { Id = "litera_3", Xmm = rightX + 70 + 10, Ymm = yOffset + 20, Wmm = 5, Hmm = 15 });
 
             // +15mm right from name cell
+            cells.Add(new StampCellTemplate { Id = "mass_title", Xmm = rightX + 70 + 15, Ymm = yOffset + 15, Wmm = 17, Hmm = 5 });
             cells.Add(new StampCellTemplate { Id = "mass", Xmm = rightX + 70 + 15, Ymm = yOffset + 20, Wmm = 17, Hmm = 15 });
+            cells.Add(new StampCellTemplate { Id = "scale_title", Xmm = rightX + 70 + 15 + 17, Ymm = yOffset + 15, Wmm = 18, Hmm = 5 });
             cells.Add(new StampCellTemplate { Id = "scale", Xmm = rightX + 70 + 15 + 17, Ymm = yOffset + 20, Wmm = 18, Hmm = 15 });
+
+            // Sheets 
+            cells.Add(new StampCellTemplate { Id = "sheet_number", Xmm = rightX + 70, Ymm = yOffset + 35, Wmm = 20, Hmm = 5 });
+            cells.Add(new StampCellTemplate { Id = "total_sheets", Xmm = rightX + 90, Ymm = yOffset + 35, Wmm = 25, Hmm = 5 });
 
             // 4. Материал
             cells.Add(new StampCellTemplate { Id = "material", Xmm = rightX, Ymm = yOffset + 40, Wmm = 70, Hmm = 15 });
