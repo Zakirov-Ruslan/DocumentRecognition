@@ -9,6 +9,7 @@
 ![Status](https://img.shields.io/badge/status-personal%20project-yellow)
 
 ---
+![WindowsForms: основная надпись и подписи](samples/screen.png)
 
 ## Возможности
 
