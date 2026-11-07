@@ -1,6 +1,6 @@
-using DocumentRecognition.Application.Services;
+Ôªøusing DocumentRecognition.Application.Services;
 using DocumentRecognition.Core.Models.Results;
-using System.Text.Json.Serialization;
+using System.Text;
 
 namespace DocumentRecognition.WindowsForms
 {
@@ -19,50 +19,109 @@ namespace DocumentRecognition.WindowsForms
         {
             using var openFileDialog = new OpenFileDialog
             {
-                Filter = "pdf|*.pdf;*.pdf;*.pdf",
-                Title = "¬˚·ÂËÚÂ ÙÓÚÓ„‡ÙË˛"
+                Filter = "PDF (*.pdf)|*.pdf|–í—Å–µ —Ñ–∞–π–ª—ã (*.*)|*.*",
+                Title = "–í—ã–±–µ—Ä–∏—Ç–µ –¥–æ–∫—É–º–µ–Ω—Ç"
             };
 
-            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            if (openFileDialog.ShowDialog() != DialogResult.OK)
+                return;
+
+            button1.Enabled = false;
+
+            try
             {
-                button1.Enabled = false;
+                using var fs = new FileStream(openFileDialog.FileName, FileMode.Open, FileAccess.Read);
 
-                var currentImagePath = openFileDialog.FileName;
+                var result = await _recognitionService.ProcessAsync(fs);
 
-                try
+                if (result is not DrawingRecognitionResult drawingRecResult)
                 {
-                    using var fs = new FileStream(currentImagePath, FileMode.Open, FileAccess.Read);
-
-                    var result = await _recognitionService.ProcessAsync(fs);
-
-                    if (result is not DrawingRecognitionResult drawingRecResult)
-                        throw new Exception("");
-
-                    using (var ms = new MemoryStream(drawingRecResult.DebugImage))
-                    {
-                        pictureBox1.Image = Image.FromStream(ms);
-                    }
-
-                    richTextBox1.Text = $"Œ·ÓÁÌ‡˜ÂÌËÂ: {drawingRecResult.TitleBlock.Designation}" +
-                        $"\nÕ‡ËÏÂÌÓ‚‡ÌËÂ: {drawingRecResult.TitleBlock.Name}" +
-                        $"\nÃ‡ÒÒ‡: {drawingRecResult.TitleBlock.Mass}" +
-                        $"\nÃ‡Ò¯Ú‡·: {drawingRecResult.TitleBlock.Scale}" +
-                        $"\nÃ‡ÚÂË‡Î: {drawingRecResult.TitleBlock.Material}" +
-                        $"\nÀËÒÚ: {drawingRecResult.TitleBlock.SheetNumber}" +
-                        $"\nÀËÒÚÓ‚: {drawingRecResult.TitleBlock.TotalSheets}" +
-                        $"\n\nœÓ‰ÔËÒË:" +
-                        $"\n{string.Join("\n", drawingRecResult.TitleBlock.Signatures.Select(s => $"{s.SignatoryText} | {s.Name} | {s.Date?.ToShortDateString()}"))}" +
-                        $"\n\n“ÂıÌË˜ÂÒÍËÂ ÚÂ·Ó‚‡ÌËˇ:\n" + string.Join("\n", drawingRecResult.TechnicalRequirements );
+                    MessageBox.Show(this, "–ü–æ–ª—É—á–µ–Ω –Ω–µ–∏–∑–≤–µ—Å—Ç–Ω—ã–π —Ç–∏–ø —Ä–µ–∑—É–ª—å—Ç–∞—Ç–∞ —Ä–∞—Å–ø–æ–∑–Ω–∞–≤–∞–Ω–∏—è.",
+                        Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    richTextBox1.Text = ex.Message + $"\n{ex.InnerException}";
-                }
-                finally
-                {
-                    button1.Enabled = true;
-                }
+
+                ShowDebugImage(drawingRecResult.DebugImage);
+                ShowTitleBlock(drawingRecResult.TitleBlock);
+                ShowTechnicalRequirements(drawingRecResult.TechnicalRequirements);
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "–û—à–∏–±–∫–∞ —Ä–∞—Å–ø–æ–∑–Ω–∞–≤–∞–Ω–∏—è", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                button1.Enabled = true;
+            }
+        }
+
+        private void ShowDebugImage(byte[]? debugImage)
+        {
+            var previousImage = pictureBox1.Image;
+            pictureBox1.Image = null;
+            previousImage?.Dispose();
+
+            if (debugImage is null || debugImage.Length == 0)
+                return;
+
+            using var stream = new MemoryStream(debugImage);
+            using var image = Image.FromStream(stream);
+            pictureBox1.Image = new Bitmap(image);
+        }
+
+        private void ShowTitleBlock(TitleBlock? titleBlock)
+        {
+            dgvTitleBlock.Rows.Clear();
+            dgvSignatures.Rows.Clear();
+
+            if (titleBlock is null)
+                return;
+
+            AddTitleBlockRow("–û–±–æ–∑–Ω–∞—á–µ–Ω–∏–µ", titleBlock.Designation);
+            AddTitleBlockRow("–ù–∞–∏–º–µ–Ω–æ–≤–∞–Ω–∏–µ", titleBlock.Name);
+            AddTitleBlockRow("–ú–∞—Å—Å–∞", titleBlock.Mass);
+            AddTitleBlockRow("–ú–∞—Å—à—Ç–∞–±", titleBlock.Scale);
+            AddTitleBlockRow("–ú–∞—Ç–µ—Ä–∏–∞–ª", titleBlock.Material);
+            AddTitleBlockRow("–õ–∏—Å—Ç", titleBlock.SheetNumber);
+            AddTitleBlockRow("–õ–∏—Å—Ç–æ–≤", titleBlock.TotalSheets);
+
+            if (titleBlock.Signatures is null)
+                return;
+
+            foreach (var signature in titleBlock.Signatures)
+            {
+                dgvSignatures.Rows.Add(
+                    signature.SignatoryText,
+                    signature.Name,
+                    signature.Date?.ToShortDateString() ?? string.Empty);
+            }
+        }
+
+        private void AddTitleBlockRow(string fieldName, string? value)
+        {
+            dgvTitleBlock.Rows.Add(fieldName, string.IsNullOrWhiteSpace(value) ? "‚Äî" : value);
+        }
+
+        private void ShowTechnicalRequirements(string[]? technicalRequirements)
+        {
+            txtTechnicalRequirements.Text = technicalRequirements is null || technicalRequirements.Length == 0
+                ? "–¢–µ—Ö–Ω–∏—á–µ—Å–∫–∏–µ —Ç—Ä–µ–±–æ–≤–∞–Ω–∏—è –Ω–µ –Ω–∞–π–¥–µ–Ω—ã."
+                : BuildNumberedList(technicalRequirements);
+
+            txtTechnicalRequirements.SelectionStart = 0;
+            txtTechnicalRequirements.SelectionLength = 0;
+        }
+
+        private static string BuildNumberedList(string[] items)
+        {
+            var builder = new StringBuilder();
+
+            for (var i = 0; i < items.Length; i++)
+            {
+                builder.AppendLine($"{i + 1}. {items[i]}");
+            }
+
+            return builder.ToString().TrimEnd();
         }
     }
 }
