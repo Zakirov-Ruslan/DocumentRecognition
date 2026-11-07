@@ -1,0 +1,41 @@
+﻿{
+  "comment": "Манифест ONNX-моделей. baseUrl указывает на релиз v1.0.0-models; можно переопределить параметром -BaseUrl (например, зеркало на Hugging Face/ModelScope). Файлы должны лежать по адресу <baseUrl>/<name>.",
+  "baseUrl": "https://github.com/Zakirov-Ruslan/DocumentRecognition/releases/download/v1.0.0-models",
+  "files": [
+    {
+      "name": "drawing_det_v4.onnx",
+      "size": 129188579,
+      "sha256": "14aaf92e6e16b9ee8b5c36dbe290e230f8a3de346f526b7e362715268ce7125c"
+    },
+    {
+      "name": "RT-DETR-L_wired_table_cell_det.onnx",
+      "size": 129331821,
+      "sha256": "43c0c957db4872276b1dc986a65e31ce6a0c73145e2624287e1fa9805df16e18"
+    },
+    {
+      "name": "ch_PP-OCRv5_det_server.onnx",
+      "size": 88118768,
+      "sha256": "0f8846b1d4bba223a2a2f9d9b44022fbc22cc019051a602b41a7fda9667e4cad"
+    },
+    {
+      "name": "ch_PP-LCNet_x1_0_textline_ori_cls_server.onnx",
+      "size": 6776876,
+      "sha256": "7d3c02ef6c7da8ae08b4347cc7695b2081aae68c325d64375724ecf39c99e743"
+    },
+    {
+      "name": "techdoc_ori_cls.onnx",
+      "size": 6782304,
+      "sha256": "3798bd3dc93a879f092770454a5c6df668921eec5c434552ed6f1aafd6e37949"
+    },
+    {
+      "name": "rec_gost_cyrillic_v7.onnx",
+      "size": 8076430,
+      "sha256": "95a640aac991fa4f04a75d59601a1a9fbde86c1a6ff70b188ee66ae9a804bd7d"
+    },
+    {
+      "name": "ppocrv5_cyrillic_dict.txt",
+      "size": 3631,
+      "sha256": "54d92ec6d2873654d1def513c7a95951402eac2f3b90f5c9c382640bb3f6bbb5"
+    }
+  ]
+}
