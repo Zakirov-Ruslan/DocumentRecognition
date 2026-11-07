@@ -1,6 +1,4 @@
-﻿using DocumentRecognition.Core.Enums;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace DocumentRecognition.Core.Models.Results
 {
@@ -16,15 +14,5 @@ namespace DocumentRecognition.Core.Models.Results
         public string Material { get; set; }
 
         public TitleBlock() { }
-    }
-
-    public class Signature
-    {
-        public Signatories Signatory { get; set; }
-        public string SignatoryText { get; set; }
-        public string Name { get; set; }
-        public DateTime? Date { get; set; }
-
-        public Signature() { }
     }
 }
