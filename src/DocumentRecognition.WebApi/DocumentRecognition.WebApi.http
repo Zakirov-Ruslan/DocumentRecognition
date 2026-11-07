@@ -1,6 +1,14 @@
 @DocumentRecognition.WebApi_HostAddress = http://localhost:5264
 
-GET {{DocumentRecognition.WebApi_HostAddress}}/weatherforecast/
-Accept: application/json
+# Распознавание чертежа: отправьте PDF-файл в multipart/form-data (поле "file").
+POST {{DocumentRecognition.WebApi_HostAddress}}/recognize
+Content-Type: multipart/form-data; boundary=----DrawingBoundary
+
+------DrawingBoundary
+Content-Disposition: form-data; name="file"; filename="drawing.pdf"
+Content-Type: application/pdf
+
+< ./drawing.pdf
+------DrawingBoundary--
 
 ###

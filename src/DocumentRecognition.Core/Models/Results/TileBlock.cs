@@ -8,7 +8,6 @@ namespace DocumentRecognition.Core.Models.Results
     {
         public string Name { get; set; }
         public string Designation { get; set; }
-        public int DocumentType { get; set; }
         public List<Signature> Signatures { get; set; }
         public string SheetNumber { get; set; }
         public string TotalSheets { get; set; }

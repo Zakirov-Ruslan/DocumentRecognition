@@ -1,23 +1,18 @@
 ﻿using System.CommandLine;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace DocumentRecognition.Console
 {
     internal class Program
     {
-        private const string Description = "Распознавание технической документации";
+        private const string Description = "Распознавание чертежей";
 
         static int Main(string[] args)
         {
             var fileNameOption = new Option<FileInfo>(name: "--filename");
-            fileNameOption.Description = "Путь к файлу";
+            fileNameOption.Description = "Путь к PDF-файлу с чертежом";
             fileNameOption.Required = true;
             fileNameOption.AcceptLegalFilePathsOnly();
-
-            var documentTypeOption = new Option<string>(name: "--doctype");
-            fileNameOption.Description = "Тип документа";
-            fileNameOption.Required = true;
 
             var rootCommand = new RootCommand(Description);
             rootCommand.Add(fileNameOption);
@@ -25,12 +20,10 @@ namespace DocumentRecognition.Console
             rootCommand.SetAction(parseRes =>
             {
                 FileInfo parsedFile = parseRes.GetValue(fileNameOption);
-                //if (!File.Exists(parsedFile.FullName))
-                //    return 
 
+                // TODO: Подключить DocumentRecognitionService и вывести результат (текст/JSON).
                 using (var fs = parsedFile.OpenRead())
                 {
-                    
                 }
 
                 return 0;

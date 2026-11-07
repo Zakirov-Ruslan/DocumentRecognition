@@ -34,16 +34,9 @@ namespace DocumentRecognition.WindowsForms
 
                 var result = await _recognitionService.ProcessAsync(fs);
 
-                if (result is not DrawingRecognitionResult drawingRecResult)
-                {
-                    MessageBox.Show(this, "Получен неизвестный тип результата распознавания.",
-                        Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                ShowDebugImage(drawingRecResult.DebugImage);
-                ShowTitleBlock(drawingRecResult.TitleBlock);
-                ShowTechnicalRequirements(drawingRecResult.TechnicalRequirements);
+                ShowDebugImage(result.DebugImage);
+                ShowTitleBlock(result.TitleBlock);
+                ShowTechnicalRequirements(result.TechnicalRequirements);
             }
             catch (Exception ex)
             {
