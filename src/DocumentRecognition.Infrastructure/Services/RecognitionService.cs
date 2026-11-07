@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DocumentRecognition.Infrastructure.Services
@@ -19,6 +20,7 @@ namespace DocumentRecognition.Infrastructure.Services
         private readonly WiredTableCellDetector _wiredTableCellDetector;
         private readonly OcrLite _ocrLite;
         private readonly Lazy<Task> _initTask;
+        private readonly SemaphoreSlim _recognitionLock = new SemaphoreSlim(1, 1);
 
         public RecognitionService(OcrLite ocrLite, DrawingLayoutDetector drawingLayoutDetector, DocOrientationClassifier docOrientationClassifier, WiredTableCellDetector wiredTableCellDetector)
         {
@@ -30,6 +32,22 @@ namespace DocumentRecognition.Infrastructure.Services
         }
 
         public async Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi)
+        {
+            // OcrLite и сессии ONNX не рассчитаны на параллельные вызовы,
+            // поэтому распознавание сериализуется (актуально для WebApi).
+            await _recognitionLock.WaitAsync().ConfigureAwait(false);
+
+            try
+            {
+                return await RecognizeDrawingCore(jpegStream, conversionDpi).ConfigureAwait(false);
+            }
+            finally
+            {
+                _recognitionLock.Release();
+            }
+        }
+
+        private async Task<DrawingRecognitionResult> RecognizeDrawingCore(Stream jpegStream, int conversionDpi)
         {
             await _initTask.Value;
 

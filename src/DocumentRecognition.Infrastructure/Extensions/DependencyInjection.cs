@@ -17,14 +17,13 @@ namespace DocumentRecognition.Infrastructure.Extensions
         {
             services.Configure<OcrSettings>(a => configuration.GetSection(OcrSettings.SectionName));
 
+            // Тяжёлые зависимости (модели ONNX) создаются один раз на приложение.
             services.AddSingleton<IRecognizer, RecognitionService>();
-            services.AddSingleton<IPdfDocument, MuPdfDocumentWrapper>();
+            services.AddSingleton<IPdfServiceFactory, MuPdfServiceFactory>();
 
             services.AddScoped<DocumentRecognitionService>();
 
-            services.AddScoped<IPdfServiceFactory, MuPdfServiceFactory>();
-
-            services.AddScoped<DrawingLayoutDetector>(sp =>
+            services.AddSingleton<DrawingLayoutDetector>(sp =>
             {
                 var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
                 var modelsPath = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
@@ -33,7 +32,7 @@ namespace DocumentRecognition.Infrastructure.Extensions
                 return new DrawingLayoutDetector(modelPath);
             });
 
-            services.AddScoped<DocOrientationClassifier>(sp =>
+            services.AddSingleton<DocOrientationClassifier>(sp =>
             {
                 var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
                 var modelsPath = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
@@ -42,7 +41,7 @@ namespace DocumentRecognition.Infrastructure.Extensions
                 return new DocOrientationClassifier(modelPath);
             });
 
-            services.AddScoped<WiredTableCellDetector>(sp =>
+            services.AddSingleton<WiredTableCellDetector>(sp =>
             {
                 var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
                 var modelsPath = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
@@ -51,7 +50,7 @@ namespace DocumentRecognition.Infrastructure.Extensions
                 return new WiredTableCellDetector(modelPath);
             });
 
-            services.AddScoped<OcrLite>(sp =>
+            services.AddSingleton<OcrLite>(sp =>
             {
                 var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
                 var path = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
