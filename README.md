@@ -54,7 +54,7 @@ flowchart LR
 | `DocumentRecognition.Core` | `netstandard2.0;net8.0;net48` | доменные модели (`TitleBlock`, `Signature`, результаты), интерфейсы (`IRecognizer`, `IPdfDocument`), enum'ы |
 | `DocumentRecognition.Application` | `netstandard2.0;net8.0;net48` | оркестрация (`DocumentRecognitionService`), DTO результата |
 | `DocumentRecognition.Infrastructure` | `netstandard2.0;net8.0;net48` | обёртка MuPDF, пайплайн распознавания, шаблон штампа ГОСТ 2.104-68, DI-регистрация |
-| `DocumentRecognition.OnnxRecognizer` | `netstandard2.0;net8.0;net48` | ONNX-инференс: OCR-движок (порт OcrLite), детекторы layout/ориентации/ячеек |
+| `DocumentRecognition.OnnxRecognizer` | `netstandard2.0;net8.0;net48` | ONNX-инференс: OCR-движок (форк RapidOCRCSharp), детекторы layout/ориентации/ячеек |
 | `DocumentRecognition.WindowsForms` | `net8.0-windows` | desktop UI |
 | `DocumentRecognition.WebApi` | `net8.0` | REST API + Swagger |
 | `DocumentRecognition.Console` | `net8.0` | CLI |
@@ -281,10 +281,16 @@ dotnet run --project src/DocumentRecognition.Console -- --input drawing.pdf
 | Microsoft.ML.OnnxRuntime.DirectML | MIT | |
 | Clipper2 | BSL-1.0 | |
 | System.CommandLine | MIT | |
-| OcrLite-порт | Apache-2.0 | см. `src/DocumentRecognition.OnnxRecognizer/LICENSE` (на основе RapidAI/PaddleOCR) |
+| RapidOCRCSharp | Apache-2.0 | [RapidAI/RapidOCRCSharp](https://github.com/RapidAI/RapidOCRCSharp) — исходный проект для `DocumentRecognition.OnnxRecognizer`; текст лицензии — `src/DocumentRecognition.OnnxRecognizer/LICENSE` |
 | Модели PaddleOCR (det/cls) | Apache-2.0 | |
 
 Модели `rec_gost_cyrillic_v7`, `drawing_det_v4`, `techdoc_ori_cls`, `RT-DETR-L_wired_table_cell_det` — результаты fine-tune инструментами PaddlePaddle; базовые архитектуры и часть весов происходят из PaddleOCR/PaddleDetection (Apache-2.0).
+
+## Происхождение кода
+
+- `DocumentRecognition.OnnxRecognizer` — форк [RapidOCRCSharp](https://github.com/RapidAI/RapidOCRCSharp) (Apache-2.0): .NET OCR на базе [RapidOCR](https://github.com/RapidAI/RapidOCR) и [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR).
+- Код проекта изменён относительно оригинала; список изменений — [`src/DocumentRecognition.OnnxRecognizer/CHANGES.md`](src/DocumentRecognition.OnnxRecognizer/CHANGES.md) (замена EmguCv на OpenCvSharp, DirectML, отказ от `System.Drawing`, переименования, добавленные модели и др.).
+- Текст лицензии исходного проекта сохранён: [`src/DocumentRecognition.OnnxRecognizer/LICENSE`](src/DocumentRecognition.OnnxRecognizer/LICENSE). На файлы, унаследованные от RapidOCRCSharp, распространяются условия Apache-2.0.
 
 ## Статус
 
