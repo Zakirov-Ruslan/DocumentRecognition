@@ -13,6 +13,10 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["DocumentRecognition.WebApi/DocumentRecognition.WebApi.csproj", "DocumentRecognition.WebApi/"]
+COPY ["DocumentRecognition.Application/DocumentRecognition.Application.csproj", "DocumentRecognition.Application/"]
+COPY ["DocumentRecognition.Core/DocumentRecognition.Core.csproj", "DocumentRecognition.Core/"]
+COPY ["DocumentRecognition.Infrastructure/DocumentRecognition.Infrastructure.csproj", "DocumentRecognition.Infrastructure/"]
+COPY ["DocumentRecognition.OnnxRecognizer/DocumentRecognition.OnnxRecognizer.csproj", "DocumentRecognition.OnnxRecognizer/"]
 RUN dotnet restore "./DocumentRecognition.WebApi/DocumentRecognition.WebApi.csproj"
 COPY . .
 WORKDIR "/src/DocumentRecognition.WebApi"

@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DocumentRecognition.Application\DocumentRecognition.Application.csproj" />
+    <ProjectReference Include="..\DocumentRecognition.Infrastructure\DocumentRecognition.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
