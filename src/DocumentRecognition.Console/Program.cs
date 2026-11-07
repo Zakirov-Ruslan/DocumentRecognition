@@ -18,6 +18,7 @@ namespace DocumentRecognition.Console
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
