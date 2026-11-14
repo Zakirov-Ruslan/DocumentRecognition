@@ -238,7 +238,7 @@
             numDpi.Increment = new decimal(new int[] { 50, 0, 0, 0 });
             numDpi.Location = new Point(12, 40);
             numDpi.Maximum = new decimal(new int[] { 900, 0, 0, 0 });
-            numDpi.Minimum = new decimal(new int[] { 200, 0, 0, 0 });
+            numDpi.Minimum = new decimal(new int[] { 100, 0, 0, 0 });
             numDpi.Name = "numDpi";
             numDpi.Size = new Size(120, 23);
             numDpi.TabIndex = 1;

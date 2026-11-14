@@ -18,7 +18,7 @@ namespace DocumentRecognition.Core.Models.Options
         /// <summary>
         /// Минимальный допустимый DPI: ниже качество OCR мелкого текста деградирует.
         /// </summary>
-        public const int MinDpi = 200;
+        public const int MinDpi = 100;
 
         /// <summary>
         /// Максимальный допустимый DPI: выше резко растут время распознавания и потребление памяти.
