@@ -9,6 +9,15 @@ namespace DocumentRecognition.Infrastructure.Services
 {
     public class MuPdfDocumentWrapper : IPdfDocument
     {
+        /// <summary>
+        /// Базовая единица PDF: 1 пункт = 1/72 дюйма. MuPDF рендерит страницу
+        /// с масштабом, кратным этому значению.
+        /// </summary>
+        private const double PdfBaseDpi = 72.0;
+
+        private const int DefaultDpi = 300;
+        private const int JpegQuality = 100;
+
         private readonly MuPDFContext _context;
         private readonly MuPDFDocument _document;
         private bool _disposed;
@@ -26,13 +35,19 @@ namespace DocumentRecognition.Infrastructure.Services
             _document = new MuPDFDocument(_context, pdfBytes, InputFileTypes.PDF);
         }
 
-        public Stream ConvertPageToJpegAsync(int pageIndex, int dpi = 100)
+        public Stream ConvertPageToJpegAsync(int pageIndex, int dpi = DefaultDpi)
         {
             ThrowIfDisposed();
 
+            if (dpi <= 0)
+                dpi = DefaultDpi;
+
+            // WriteImageAsJPEG принимает не DPI, а zoom — коэффициент относительно 72 dpi.
+            var zoom = dpi / PdfBaseDpi;
+
             var resultStream = new MemoryStream();
 
-            _document.WriteImageAsJPEG(pageIndex, 1, resultStream, 100, false);
+            _document.WriteImageAsJPEG(pageIndex, zoom, resultStream, JpegQuality, false);
 
             return resultStream;
         }
