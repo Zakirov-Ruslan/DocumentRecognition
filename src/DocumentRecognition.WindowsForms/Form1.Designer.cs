@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             imageViewer1 = new ImageViewerControl();
             button1 = new Button();
             tabControl1 = new TabControl();
@@ -52,7 +53,7 @@
             // imageViewer1
             // 
             imageViewer1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            imageViewer1.BorderStyle = BorderStyle.FixedSingle;
+            imageViewer1.BackColor = Color.FromArgb(64, 64, 64);
             imageViewer1.Location = new Point(12, 12);
             imageViewer1.Name = "imageViewer1";
             imageViewer1.Size = new Size(620, 536);
@@ -207,6 +208,7 @@
             Controls.Add(tabControl1);
             Controls.Add(button1);
             Controls.Add(imageViewer1);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
             Text = "Document Recognition";
             tabControl1.ResumeLayout(false);
