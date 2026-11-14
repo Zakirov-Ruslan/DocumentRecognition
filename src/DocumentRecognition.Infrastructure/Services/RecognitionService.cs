@@ -19,16 +19,35 @@ namespace DocumentRecognition.Infrastructure.Services
         private readonly DrawingLayoutDetector _drawingLayoutDetector;
         private readonly WiredTableCellDetector _wiredTableCellDetector;
         private readonly OcrLite _ocrLite;
-        private readonly Lazy<Task> _initTask;
         private readonly SemaphoreSlim _recognitionLock = new SemaphoreSlim(1, 1);
 
         public RecognitionService(OcrLite ocrLite, DrawingLayoutDetector drawingLayoutDetector, DocOrientationClassifier docOrientationClassifier, WiredTableCellDetector wiredTableCellDetector)
         {
             _ocrLite = ocrLite;
-            _initTask = new Lazy<Task>(() => _ocrLite.InitModels());
             _drawingLayoutDetector = drawingLayoutDetector;
             _docOrientationClassifier = docOrientationClassifier;
             _wiredTableCellDetector = wiredTableCellDetector;
+        }
+
+        /// <summary>
+        /// Ленивая идемпотентная инициализация всех движков (<see cref="IInferenceEngine"/>):
+        /// после первого успешного вызова превращается в no-op.
+        /// </summary>
+        private Task EnsureEnginesInitializedAsync()
+        {
+            if (_ocrLite.IsInitialized
+                && _drawingLayoutDetector.IsInitialized
+                && _docOrientationClassifier.IsInitialized
+                && _wiredTableCellDetector.IsInitialized)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Task.WhenAll(
+                _ocrLite.InitializeAsync(),
+                _drawingLayoutDetector.InitializeAsync(),
+                _docOrientationClassifier.InitializeAsync(),
+                _wiredTableCellDetector.InitializeAsync());
         }
 
         public async Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi)
@@ -49,7 +68,7 @@ namespace DocumentRecognition.Infrastructure.Services
 
         private async Task<DrawingRecognitionResult> RecognizeDrawingCore(Stream jpegStream, int conversionDpi)
         {
-            await _initTask.Value;
+            await EnsureEnginesInitializedAsync().ConfigureAwait(false);
 
             if (jpegStream.CanSeek)
             {
@@ -86,7 +105,7 @@ namespace DocumentRecognition.Infrastructure.Services
                             {
                                 var options = new DetectOptions(
                                     padding: (int)(20 * scale),
-                                    doAngle: true,
+                                    doAngle: false,
                                     mostAngle: false,
                                     unClipRatio: 1.5f,
                                     boxThresh: 0.2f,
@@ -115,7 +134,7 @@ namespace DocumentRecognition.Infrastructure.Services
                         {
                             var ocrOptions = new DetectOptions(
                                 padding: 50,
-                                doAngle: true,
+                                doAngle: false,
                                 mostAngle: false,
                                 unClipRatio: 1.5f, 
                                 boxThresh: 0.3f,

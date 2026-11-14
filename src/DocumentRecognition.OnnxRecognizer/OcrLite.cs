@@ -3,6 +3,7 @@
  * Original: https://github.com/RapidAI/RapidOCRCSharp
  */
 
+using DocumentRecognition.OnnxRecognizer;
 using Ocr.Models;
 using OpenCvSharp;
 using System;
@@ -19,13 +20,22 @@ namespace Ocr
     /// Main class for Optical Character Recognition (OCR)
     /// Combines three neural network components: text detector, angle classifier, and character recognizer
     /// </summary>
-    public partial class OcrLite : IDisposable
+    public partial class OcrLite : IDisposable, IInferenceEngine
     {
 
         // Internal OCR components
         private TextDetector _dbNet;
         private TextLineOrientationClassifier _angleNet;
         private TextRecognizer _crnnNet;
+
+        // Инициализация моделей: идемпотентная и потокобезопасная (как у остальных движков).
+        private readonly object _initLock = new object();
+        private Task _initTask;
+
+        /// <summary>
+        /// true, когда все три модели (det/cls/rec) загружены.
+        /// </summary>
+        public bool IsInitialized { get; private set; }
 
         /// <summary>
         /// Debug mode - displays intermediate images during processing
@@ -91,9 +101,9 @@ namespace Ocr
         /// Asynchronous initialization of the OCR engine using previously set paths
         /// </summary>
         /// <returns>Task</returns>
-        public async Task InitModels()
+        public Task InitModels()
         {
-            await InitModels(DetPath, ClsPath, RecPath, KeyDicPath, 0);
+            return InitModels(DetPath, ClsPath, RecPath, KeyDicPath, 0);
         }
 
         /// <summary>
@@ -101,22 +111,51 @@ namespace Ocr
         /// </summary>
         /// <param name="options">ModeOptions object with model parameters</param>
         /// <returns>Task</returns>
-        public async Task InitModels(ModeOptions options)
+        public Task InitModels(ModeOptions options)
         {
-            await InitModels(options.DetPath, options.ClsPath, options.RecPath, options.KeyDicPath, options.ThreadNum);
+            return InitModels(options.DetPath, options.ClsPath, options.RecPath, options.KeyDicPath, options.ThreadNum);
+        }
+
+        /// <summary>
+        /// Инициализация через общий контракт движков (IInferenceEngine).
+        /// </summary>
+        public Task InitializeAsync()
+        {
+            return InitModels(DetPath, ClsPath, RecPath, KeyDicPath, 0);
         }
 
         /// <summary>
         /// Complete asynchronous initialization of the OCR engine
         /// Loads all three models and the dictionary into memory
         /// </summary>
+        /// <remarks>
+        /// Вызов идемпотентен: повторные обращения не пересоздают сессии,
+        /// параллельный вызов возвращает тот же Task. Если предыдущая попытка
+        /// завершилась ошибкой, следующая попытка выполняется заново.
+        /// </remarks>
         /// <param name="detPath">Path to detector model</param>
         /// <param name="clsPath">Path to angle classifier model</param>
         /// <param name="recPath">Path to recognition model</param>
         /// <param name="keysPath">Path to character dictionary file</param>
         /// <param name="numThread">Number of CPU threads (0 - auto-detect)</param>
         /// <returns>Task</returns>
-        public async Task InitModels(string detPath, string clsPath, string recPath, string keysPath, int numThread = 0)
+        public Task InitModels(string detPath, string clsPath, string recPath, string keysPath, int numThread = 0)
+        {
+            lock (_initLock)
+            {
+                if (IsInitialized)
+                    return Task.CompletedTask;
+
+                // Инициализация уже идёт — возвращаем тот же Task, второй загрузки не будет.
+                if (_initTask != null && !_initTask.IsCompleted)
+                    return _initTask;
+
+                _initTask = InitModelsCoreAsync(detPath, clsPath, recPath, keysPath, numThread);
+                return _initTask;
+            }
+        }
+
+        private async Task InitModelsCoreAsync(string detPath, string clsPath, string recPath, string keysPath, int numThread)
         {
             try
             {
@@ -128,15 +167,41 @@ namespace Ocr
                     ThreadNum = numThread;
                 }
 
-                await _dbNet.InitModel(DetPath, ThreadNum);
-                await _angleNet.InitModel(ClsPath, ThreadNum);
-                await _crnnNet.InitModel(RecPath, keysPath, ThreadNum);
+                // Модели независимы, поэтому грузятся параллельно.
+                // Task.Run нужен, т.к. внутри InitModel тяжёлая синхронная работа
+                // (создание SessionOptions/InferenceSession).
+                var det = DetPath;
+                var cls = ClsPath;
+                var rec = RecPath;
+                var keys = KeyDicPath;
+                var threads = ThreadNum;
+
+                await Task.WhenAll(
+                    Task.Run(() => _dbNet.InitModel(det, threads)),
+                    Task.Run(() => _angleNet.InitModel(cls, threads)),
+                    Task.Run(() => _crnnNet.InitModel(rec, keys, threads))).ConfigureAwait(false);
+
+                IsInitialized = true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message + ex.StackTrace);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Ленивая инициализация «по требованию», единообразная с остальными движками
+        /// (<see cref="IInferenceEngine"/>): первый Detect сам подгружает модели.
+        /// </summary>
+        private void EnsureInitialized()
+        {
+            if (IsInitialized)
+                return;
+
+            // Task.Run + ConfigureAwait(false) внутри InitModelsCoreAsync —
+            // чтобы не зависеть от SynchronizationContext (библиотека живёт и в WinForms).
+            Task.Run(() => InitModels(DetPath, ClsPath, RecPath, KeyDicPath, 0)).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -268,6 +333,8 @@ namespace Ocr
         /// <returns>OcrResult object with recognition results</returns>
         private OcrResult DetectCore(Mat src, Rect originRect, ScaleParam scale, DetectOptions options)
         {
+            EnsureInitialized();
+
             Mat textBoxPaddingImg = src.Clone();
             int thickness = OcrUtils.GetThickness(src);
             Console.WriteLine("=====Start detect=====");

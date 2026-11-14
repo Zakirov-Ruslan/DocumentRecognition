@@ -1,37 +1,48 @@
-﻿using Microsoft.ML.OnnxRuntime;
+﻿using DocumentRecognition.OnnxRecognizer;
+using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenCvSharp;
 using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
-public class DocOrientationClassifier : IDisposable
+public class DocOrientationClassifier : IDisposable, IInferenceEngine
 {
-    private InferenceSession _session;
+    private readonly Lazy<InferenceSession> _session;
+    private readonly string _modelPath;
     private readonly int _inputSize = 224;
 
     private readonly float[] _mean = { 0.485f, 0.456f, 0.406f };
     private readonly float[] _std = { 0.229f, 0.224f, 0.225f };
 
-    public DocOrientationClassifier(string onnxPath) 
+    public DocOrientationClassifier(string onnxPath)
     {
-        var op = new SessionOptions();
-        op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
-
-        try
-        {
-            op.AppendExecutionProvider_DML();
-            Console.WriteLine($"[DocOrientationClassifier] DirectML initialized on device");
-        }
-        catch (Exception dmlEx)
-        {
-            // Fallback CPU, if DirectML now awailable
-            Console.WriteLine($"[DocOrientationClassifier] DirectML failed ({dmlEx.Message}), falling back to CPU.");
-
-            op.AppendExecutionProvider_CPU(0);
-        }
-
-        _session = new InferenceSession(onnxPath, op);
+        // Конструктор дешёвый: модель грузится лениво при первом инференсе
+        // или при явном вызове InitializeAsync() — как в OcrLite.InitModels().
+        _modelPath = onnxPath;
+        _session = new Lazy<InferenceSession>(CreateSession, LazyThreadSafetyMode.ExecutionAndPublication);
     }
+
+    /// <inheritdoc />
+    public bool IsInitialized => _session.IsValueCreated;
+
+    /// <summary>
+    /// Прогрев модели: загрузка выполняется в пуле потоков, идемпотентно
+    /// и потокобезопасно (повторные вызовы возвращают тот же результат).
+    /// </summary>
+    public Task InitializeAsync()
+    {
+        if (_session.IsValueCreated)
+            return Task.CompletedTask;
+
+        return Task.Run(() => _session.Value);
+    }
+
+    private InferenceSession CreateSession() =>
+        OnnxSessionFactory.Create(_modelPath, nameof(DocOrientationClassifier), GraphOptimizationLevel.ORT_ENABLE_ALL);
+
+    private InferenceSession Session => _session.Value;
 
     public Mat EnsureImageOrientation(Mat img)
     {
@@ -80,6 +91,8 @@ public class DocOrientationClassifier : IDisposable
         if (img.Empty())
             throw new ArgumentException("Input image is empty", nameof(img));
 
+        var session = Session;
+
         using (var resized = new Mat())
         {
             Cv2.Resize(img, resized, new Size(_inputSize, _inputSize));
@@ -110,10 +123,10 @@ public class DocOrientationClassifier : IDisposable
                 }
 
                 // Inference
-                string inputName = _session.InputMetadata.Keys.First(); 
+                string inputName = session.InputMetadata.Keys.First(); 
                 var inputs = new[] { NamedOnnxValue.CreateFromTensor(inputName, inputTensor) };
 
-                using (var results = _session.Run(inputs))
+                using (var results = session.Run(inputs))
                 {
                     // Postprocess: softmax + argmax
                     var outputTensor = results.First().AsTensor<float>();
@@ -137,6 +150,8 @@ public class DocOrientationClassifier : IDisposable
 
     public void Dispose()
     {
-        _session?.Dispose();
+        // Сессия могла так и не создаться — тогда освобождать нечего.
+        if (_session.IsValueCreated)
+            _session.Value.Dispose();
     }
 }

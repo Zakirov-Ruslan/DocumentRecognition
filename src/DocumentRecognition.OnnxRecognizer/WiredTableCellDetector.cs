@@ -4,6 +4,8 @@ using OpenCvSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DocumentRecognition.OnnxRecognizer
 {
@@ -14,9 +16,10 @@ namespace DocumentRecognition.OnnxRecognizer
         public Rect Box { get; set; }
     }
 
-    public class WiredTableCellDetector : IDisposable
+    public class WiredTableCellDetector : IDisposable, IInferenceEngine
     {
-        private readonly InferenceSession _session;
+        private readonly Lazy<InferenceSession> _session;
+        private readonly string _modelPath;
         private readonly string[] _labels = { "cell" };
 
         private const int InputH = 640;
@@ -25,37 +28,52 @@ namespace DocumentRecognition.OnnxRecognizer
 
         public WiredTableCellDetector(string onnxPath)
         {
-            var op = new SessionOptions();
-            op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
+            // Конструктор дешёвый: модель грузится лениво при первом инференсе
+            // или при явном вызове InitializeAsync() — как в OcrLite.InitModels().
+            _modelPath = onnxPath;
+            _session = new Lazy<InferenceSession>(CreateSession, LazyThreadSafetyMode.ExecutionAndPublication);
+        }
 
-            try
-            {
-                op.AppendExecutionProvider_DML();
-                Console.WriteLine($"[WiredTableCellDetector] DirectML initialized");
-            }
-            catch (Exception dmlEx)
-            {
-                Console.WriteLine($"[WiredTableCellDetector] DirectML failed ({dmlEx.Message}), falling back to CPU.");
-                op.AppendExecutionProvider_CPU(0);
-            }
+        /// <inheritdoc />
+        public bool IsInitialized => _session.IsValueCreated;
 
-            _session = new InferenceSession(onnxPath, op);
+        /// <summary>
+        /// Прогрев модели: загрузка выполняется в пуле потоков, идемпотентно
+        /// и потокобезопасно (повторные вызовы возвращают тот же результат).
+        /// </summary>
+        public Task InitializeAsync()
+        {
+            if (_session.IsValueCreated)
+                return Task.CompletedTask;
+
+            return Task.Run(() => _session.Value);
+        }
+
+        private InferenceSession CreateSession()
+        {
+            var session = OnnxSessionFactory.Create(_modelPath, nameof(WiredTableCellDetector), GraphOptimizationLevel.ORT_ENABLE_EXTENDED);
 
             Console.WriteLine("[WiredTableCellDetector] Model inputs:");
-            foreach (var input in _session.InputMetadata)
+            foreach (var input in session.InputMetadata)
             {
                 Console.WriteLine($"  {input.Key}: {string.Join("x", input.Value.Dimensions)}");
             }
 
             Console.WriteLine("[WiredTableCellDetector] Model outputs:");
-            foreach (var output in _session.OutputMetadata)
+            foreach (var output in session.OutputMetadata)
             {
                 Console.WriteLine($"  {output.Key}: {string.Join("x", output.Value.Dimensions)}");
             }
+
+            return session;
         }
+
+        private InferenceSession Session => _session.Value;
 
         public List<TableCellDetection> Detect(Mat image)
         {
+            var session = Session;
+
             int origH = image.Rows;
             int origW = image.Cols;
 
@@ -83,7 +101,7 @@ namespace DocumentRecognition.OnnxRecognizer
                 var imageTensor = new DenseTensor<float>(inputData, new[] { 1, 3, InputH, InputW });
 
                 var inputs = new List<NamedOnnxValue>();
-                foreach (var inputMeta in _session.InputMetadata)
+                foreach (var inputMeta in session.InputMetadata)
                 {
                     if (inputMeta.Value.Dimensions.Length == 4)
                     {
@@ -119,7 +137,7 @@ namespace DocumentRecognition.OnnxRecognizer
                     }
                 }
 
-                using (var results = _session.Run(inputs))
+                using (var results = session.Run(inputs))
                 {
                     var outputTensor = results.First().AsTensor<float>();
                     var output = outputTensor.ToArray();
@@ -309,6 +327,11 @@ namespace DocumentRecognition.OnnxRecognizer
             return srcMat;
         }
 
-        public void Dispose() => _session?.Dispose();
+        public void Dispose()
+        {
+            // Сессия могла так и не создаться — тогда освобождать нечего.
+            if (_session.IsValueCreated)
+                _session.Value.Dispose();
+        }
     }
 }

@@ -4,6 +4,8 @@ using OpenCvSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DocumentRecognition.OnnxRecognizer
 {
@@ -14,9 +16,11 @@ namespace DocumentRecognition.OnnxRecognizer
         public Rect Box { get; set; }
     }
 
-    public class DrawingLayoutDetector : IDisposable
+    public class DrawingLayoutDetector : IDisposable, IInferenceEngine
     {
-        private readonly InferenceSession _session;
+        private readonly Lazy<InferenceSession> _session;
+        private readonly string _modelPath;
+
         private readonly string[] _labels = {
             "technical_requirements", "view",  "general_roughness",
             "title_block_2", "additional_graphs_left", "configuration_table", "title_block_2a",
@@ -29,27 +33,36 @@ namespace DocumentRecognition.OnnxRecognizer
 
         public DrawingLayoutDetector(string onnxPath)
         {
-            var op = new SessionOptions();
-            op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-
-            try
-            {
-                op.AppendExecutionProvider_DML();
-                Console.WriteLine($"[DrawingLayoutDetector] DirectML initialized on device");
-            }
-            catch (Exception dmlEx)
-            {
-                // Fallback CPU, if DirectML now awailable
-                Console.WriteLine($"[DrawingLayoutDetector] DirectML failed ({dmlEx.Message}), falling back to CPU.");
-
-                op.AppendExecutionProvider_CPU(0);
-            }
-
-            _session = new InferenceSession(onnxPath, op);
+            // Конструктор дешёвый: модель грузится лениво при первом инференсе
+            // или при явном вызове InitializeAsync() — как в OcrLite.InitModels().
+            _modelPath = onnxPath;
+            _session = new Lazy<InferenceSession>(CreateSession, LazyThreadSafetyMode.ExecutionAndPublication);
         }
+
+        /// <inheritdoc />
+        public bool IsInitialized => _session.IsValueCreated;
+
+        /// <summary>
+        /// Прогрев модели: загрузка выполняется в пуле потоков, идемпотентно
+        /// и потокобезопасно (повторные вызовы возвращают тот же результат).
+        /// </summary>
+        public Task InitializeAsync()
+        {
+            if (_session.IsValueCreated)
+                return Task.CompletedTask;
+
+            return Task.Run(() => _session.Value);
+        }
+
+        private InferenceSession CreateSession() =>
+            OnnxSessionFactory.Create(_modelPath, nameof(DrawingLayoutDetector), GraphOptimizationLevel.ORT_ENABLE_EXTENDED);
+
+        private InferenceSession Session => _session.Value;
 
         public List<DrawingLayoutDetection> Detect(Mat image)
         {
+            var session = Session;
+
             int origH = image.Rows;
             int origW = image.Cols;
 
@@ -76,7 +89,7 @@ namespace DocumentRecognition.OnnxRecognizer
                 var imageTensor = new DenseTensor<float>(inputData, new[] { 1, 3, InputH, InputW });
 
                 var inputs = new List<NamedOnnxValue>();
-                foreach (var inputMeta in _session.InputMetadata)
+                foreach (var inputMeta in session.InputMetadata)
                 {
                     if (inputMeta.Value.Dimensions.Length == 4)
                     {
@@ -94,7 +107,7 @@ namespace DocumentRecognition.OnnxRecognizer
                 }
 
                 // --- Inference ---
-                using (var results = _session.Run(inputs))
+                using (var results = session.Run(inputs))
                 {
                     var outputTensor = results.First().AsTensor<float>();
                     var output = outputTensor.ToArray();
@@ -164,6 +177,11 @@ namespace DocumentRecognition.OnnxRecognizer
             return srcMat;
         }
 
-        public void Dispose() => _session?.Dispose();
+        public void Dispose()
+        {
+            // Сессия могла так и не создаться — тогда освобождать нечего.
+            if (_session.IsValueCreated)
+                _session.Value.Dispose();
+        }
     }
 }
