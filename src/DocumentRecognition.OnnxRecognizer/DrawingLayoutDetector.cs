@@ -20,6 +20,8 @@ namespace DocumentRecognition.OnnxRecognizer
     {
         private readonly Lazy<InferenceSession> _session;
         private readonly string _modelPath;
+        private readonly InferenceExecutionProvider _provider;
+        private readonly int _threads;
 
         private readonly string[] _labels = {
             "technical_requirements", "view",  "general_roughness",
@@ -31,11 +33,16 @@ namespace DocumentRecognition.OnnxRecognizer
         private const int InputW = 640;
         private const float ScoreThreshold = 0.3f;
 
-        public DrawingLayoutDetector(string onnxPath)
+        public DrawingLayoutDetector(
+            string onnxPath,
+            InferenceExecutionProvider provider = InferenceExecutionProvider.Auto,
+            int threads = 0)
         {
             // Конструктор дешёвый: модель грузится лениво при первом инференсе
             // или при явном вызове InitializeAsync() — как в OcrLite.InitModels().
             _modelPath = onnxPath;
+            _provider = provider;
+            _threads = threads;
             _session = new Lazy<InferenceSession>(CreateSession, LazyThreadSafetyMode.ExecutionAndPublication);
         }
 
@@ -55,7 +62,12 @@ namespace DocumentRecognition.OnnxRecognizer
         }
 
         private InferenceSession CreateSession() =>
-            OnnxSessionFactory.Create(_modelPath, nameof(DrawingLayoutDetector), GraphOptimizationLevel.ORT_ENABLE_EXTENDED);
+            OnnxSessionFactory.Create(
+                _modelPath,
+                nameof(DrawingLayoutDetector),
+                _provider,
+                _threads,
+                GraphOptimizationLevel.ORT_ENABLE_EXTENDED);
 
         private InferenceSession Session => _session.Value;
 

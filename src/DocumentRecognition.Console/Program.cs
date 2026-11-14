@@ -53,12 +53,30 @@ namespace DocumentRecognition.Console
                 Description = "DPI при конвертации PDF, обычно 200–900 (по умолчанию 200)"
             };
 
+            var providerOption = new Option<string?>("--provider")
+            {
+                Description = "Провайдер инференса: auto, cpu или directml (по умолчанию auto)"
+            };
+
+            var modelsDirOption = new Option<string?>("--models-dir")
+            {
+                Description = "Каталог ONNX-моделей (абсолютный или относительно каталога приложения)"
+            };
+
+            var threadsOption = new Option<int>("--threads")
+            {
+                Description = "Количество потоков CPU для ONNX-сессий (0 — авто)"
+            };
+
             var rootCommand = new RootCommand(Description);
             rootCommand.Add(inputOption);
             rootCommand.Add(jsonOption);
             rootCommand.Add(outputOption);
             rootCommand.Add(debugImageOption);
             rootCommand.Add(dpiOption);
+            rootCommand.Add(providerOption);
+            rootCommand.Add(modelsDirOption);
+            rootCommand.Add(threadsOption);
 
             rootCommand.SetAction(async (parseResult, cancellationToken) =>
             {
@@ -80,9 +98,23 @@ namespace DocumentRecognition.Console
                 };
                 options.Normalize();
 
+                var engineSettings = new Dictionary<string, string?>();
+
+                var provider = parseResult.GetValue(providerOption);
+                if (!string.IsNullOrWhiteSpace(provider))
+                    engineSettings[$"{OcrSettings.SectionName}:Provider"] = provider;
+
+                var modelsDir = parseResult.GetValue(modelsDirOption);
+                if (!string.IsNullOrWhiteSpace(modelsDir))
+                    engineSettings[$"{OcrSettings.SectionName}:ModelsDir"] = modelsDir;
+
+                var threads = parseResult.GetValue(threadsOption);
+                if (threads > 0)
+                    engineSettings[$"{OcrSettings.SectionName}:Threads"] = threads.ToString();
+
                 try
                 {
-                    var result = await RecognizeAsync(inputFile, options);
+                    var result = await RecognizeAsync(inputFile, options, engineSettings);
 
                     var text = parseResult.GetValue(jsonOption)
                         ? JsonSerializer.Serialize(DrawingRecognitionResultDto.FromResult(result), JsonOptions)
@@ -117,9 +149,12 @@ namespace DocumentRecognition.Console
             return await rootCommand.Parse(args).InvokeAsync();
         }
 
-        private static async Task<DrawingRecognitionResult> RecognizeAsync(FileInfo inputFile, DrawingRecognitionOptions options)
+        private static async Task<DrawingRecognitionResult> RecognizeAsync(
+            FileInfo inputFile,
+            DrawingRecognitionOptions options,
+            Dictionary<string, string?> engineSettings)
         {
-            using var serviceProvider = CreateServiceProvider();
+            using var serviceProvider = CreateServiceProvider(engineSettings);
             using var scope = serviceProvider.CreateScope();
 
             var recognitionService = scope.ServiceProvider.GetRequiredService<DocumentRecognitionService>();
@@ -129,11 +164,12 @@ namespace DocumentRecognition.Console
             return await recognitionService.ProcessAsync(stream, options);
         }
 
-        private static ServiceProvider CreateServiceProvider()
+        private static ServiceProvider CreateServiceProvider(Dictionary<string, string?> engineSettings)
         {
-            // Пути к моделям берутся из OcrSettings по умолчанию,
-            // поэтому конфигурация нужна здесь только как контракт DI.
-            var configuration = new ConfigurationBuilder().Build();
+            // Пути к моделям берутся из OcrSettings по умолчанию, CLI-опции их переопределяют.
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(engineSettings)
+                .Build();
 
             var services = new ServiceCollection();
             services.AddApplicationServices(configuration);

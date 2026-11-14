@@ -7,6 +7,16 @@ namespace DocumentRecognition.WindowsForms
     internal static class Program
     {
         /// <summary>
+        /// Пользовательские настройки движков (провайдер инференса, каталог моделей).
+        /// Файл перечитывается на лету (reloadOnChange), поэтому применённые
+        /// изменения подхватываются без перезапуска приложения.
+        /// </summary>
+        internal static string SettingsFilePath { get; } = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "DocumentRecognition",
+            "settings.json");
+
+        /// <summary>
         ///  The main entry point for the application.
         /// </summary>
         [STAThread]
@@ -17,14 +27,14 @@ namespace DocumentRecognition.WindowsForms
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["OcrSettings:ModelsDir"] = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OnnxModels"),
-                    ["OcrSettings:DetModel"] = "ch_PP-OCRv5_det_server.onnx",
-                    ["OcrSettings:ClsModel"] = "ch_PP-LCNet_x1_0_textline_ori_cls_server.onnx",
-                    ["OcrSettings:RecModel"] = "rec_gost_cyrillic_v7.onnx",
-                    ["OcrSettings:DictFile"] = "ppocrv5_cyrillic_dict.txt",
-                    ["OcrSettings:DrawingLayoutDetModel"] = "drawing_det_v4.onnx",
-                    ["OcrSettings:DocOrientationClsModel"] = "techdoc_ori_cls.onnx"
+                    // Каталог моделей по умолчанию — рядом с приложением.
+                    [$"{OcrSettings.SectionName}:{nameof(OcrSettings.ModelsDir)}"] =
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OnnxModels")
                 })
+                .AddJsonFile(SettingsFilePath, optional: true, reloadOnChange: true)
+                // Последний провайдер имеет наивысший приоритет: сюда пишутся
+                // изменения из UI, поэтому они действуют до перезапуска.
+                .AddInMemoryCollection(new Dictionary<string, string?>())
                 .Build();
 
             var services = new ServiceCollection();

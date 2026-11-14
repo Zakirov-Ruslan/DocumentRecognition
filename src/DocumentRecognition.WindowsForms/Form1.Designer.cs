@@ -49,6 +49,14 @@
             lblDpiHint = new Label();
             numDpi = new NumericUpDown();
             lblDpi = new Label();
+            lblEngineSettingsStatus = new Label();
+            btnApplyEngineSettings = new Button();
+            lblModelsDirHint = new Label();
+            btnResetModelsDir = new Button();
+            btnChangeModelsDir = new Button();
+            lblModelsPath = new Label();
+            cmbProvider = new ComboBox();
+            lblProvider = new Label();
             tabControl1.SuspendLayout();
             tabPageTitleBlock.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvSignatures).BeginInit();
@@ -216,6 +224,14 @@
             tabPageSettings.Controls.Add(lblDpiHint);
             tabPageSettings.Controls.Add(numDpi);
             tabPageSettings.Controls.Add(lblDpi);
+            tabPageSettings.Controls.Add(lblEngineSettingsStatus);
+            tabPageSettings.Controls.Add(btnApplyEngineSettings);
+            tabPageSettings.Controls.Add(lblModelsDirHint);
+            tabPageSettings.Controls.Add(btnResetModelsDir);
+            tabPageSettings.Controls.Add(btnChangeModelsDir);
+            tabPageSettings.Controls.Add(lblModelsPath);
+            tabPageSettings.Controls.Add(cmbProvider);
+            tabPageSettings.Controls.Add(lblProvider);
             tabPageSettings.Location = new Point(4, 24);
             tabPageSettings.Name = "tabPageSettings";
             tabPageSettings.Padding = new Padding(6);
@@ -274,6 +290,79 @@
             btnResetSettings.UseVisualStyleBackColor = true;
             btnResetSettings.Click += btnResetSettings_Click;
             // 
+            // lblProvider
+            // 
+            lblProvider.AutoSize = true;
+            lblProvider.Location = new Point(12, 180);
+            lblProvider.Name = "lblProvider";
+            lblProvider.Size = new Size(128, 15);
+            lblProvider.TabIndex = 5;
+            lblProvider.Text = "Провайдер инференса:";
+            // 
+            // cmbProvider
+            // 
+            cmbProvider.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbProvider.FormattingEnabled = true;
+            cmbProvider.Location = new Point(12, 202);
+            cmbProvider.Name = "cmbProvider";
+            cmbProvider.Size = new Size(220, 23);
+            cmbProvider.TabIndex = 6;
+            // 
+            // lblModelsPath
+            // 
+            lblModelsPath.AutoEllipsis = true;
+            lblModelsPath.Location = new Point(12, 242);
+            lblModelsPath.Name = "lblModelsPath";
+            lblModelsPath.Size = new Size(420, 18);
+            lblModelsPath.TabIndex = 7;
+            lblModelsPath.Text = "Модели: —";
+            // 
+            // btnChangeModelsDir
+            // 
+            btnChangeModelsDir.Location = new Point(12, 264);
+            btnChangeModelsDir.Name = "btnChangeModelsDir";
+            btnChangeModelsDir.Size = new Size(200, 25);
+            btnChangeModelsDir.TabIndex = 8;
+            btnChangeModelsDir.Text = "Изменить…";
+            btnChangeModelsDir.UseVisualStyleBackColor = true;
+            btnChangeModelsDir.Click += btnChangeModelsDir_Click;
+            // 
+            // btnResetModelsDir
+            // 
+            btnResetModelsDir.Location = new Point(220, 264);
+            btnResetModelsDir.Name = "btnResetModelsDir";
+            btnResetModelsDir.Size = new Size(212, 25);
+            btnResetModelsDir.TabIndex = 9;
+            btnResetModelsDir.Text = "Сбросить к папке приложения";
+            btnResetModelsDir.UseVisualStyleBackColor = true;
+            btnResetModelsDir.Click += btnResetModelsDir_Click;
+            // 
+            // lblModelsDirHint
+            // 
+            lblModelsDirHint.Location = new Point(12, 296);
+            lblModelsDirHint.Name = "lblModelsDirHint";
+            lblModelsDirHint.Size = new Size(420, 34);
+            lblModelsDirHint.TabIndex = 10;
+            lblModelsDirHint.Text = "Все модели должны лежать в одном каталоге. Проверка выполняется при применении: отсутствующие файлы не дадут применить настройки.";
+            // 
+            // btnApplyEngineSettings
+            // 
+            btnApplyEngineSettings.Location = new Point(12, 336);
+            btnApplyEngineSettings.Name = "btnApplyEngineSettings";
+            btnApplyEngineSettings.Size = new Size(160, 29);
+            btnApplyEngineSettings.TabIndex = 11;
+            btnApplyEngineSettings.Text = "Применить";
+            btnApplyEngineSettings.UseVisualStyleBackColor = true;
+            btnApplyEngineSettings.Click += btnApplyEngineSettings_Click;
+            // 
+            // lblEngineSettingsStatus
+            // 
+            lblEngineSettingsStatus.Location = new Point(180, 340);
+            lblEngineSettingsStatus.Name = "lblEngineSettingsStatus";
+            lblEngineSettingsStatus.Size = new Size(252, 44);
+            lblEngineSettingsStatus.TabIndex = 12;
+            lblEngineSettingsStatus.ForeColor = SystemColors.GrayText;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -320,5 +409,13 @@
         private Label lblDpiHint;
         private CheckBox chkCleanImage;
         private Button btnResetSettings;
+        private Label lblProvider;
+        private ComboBox cmbProvider;
+        private Label lblModelsPath;
+        private Button btnChangeModelsDir;
+        private Button btnResetModelsDir;
+        private Label lblModelsDirHint;
+        private Button btnApplyEngineSettings;
+        private Label lblEngineSettingsStatus;
     }
 }

@@ -1,7 +1,11 @@
 ﻿using DocumentRecognition.Application.Services;
 using DocumentRecognition.Core.Models.Options;
 using DocumentRecognition.Core.Models.Results;
+using DocumentRecognition.Infrastructure.Extensions;
+using DocumentRecognition.OnnxRecognizer;
+using Microsoft.Extensions.Options;
 using System.Text;
+using System.Text.Json;
 
 namespace DocumentRecognition.WindowsForms
 {
@@ -11,6 +15,7 @@ namespace DocumentRecognition.WindowsForms
         private static readonly Color HoverRowColor = Color.FromArgb(255, 249, 196);
 
         private readonly DocumentRecognitionService _recognitionService;
+        private readonly IRuntimeOcrSettings _runtimeSettings;
         private readonly Dictionary<string, DataGridViewRow> _titleBlockRowsByKey = new();
         private readonly Dictionary<string, DataGridViewRow> _signatureRowsByKey = new();
 
@@ -24,11 +29,14 @@ namespace DocumentRecognition.WindowsForms
         /// </summary>
         private bool _syncingSelection;
 
-        public Form1(DocumentRecognitionService recognitionService)
+        public Form1(DocumentRecognitionService recognitionService, IRuntimeOcrSettings runtimeSettings)
         {
             InitializeComponent();
 
             _recognitionService = recognitionService;
+            _runtimeSettings = runtimeSettings;
+
+            PopulateEngineSettings();
         }
 
         private async void button1_Click(object sender, EventArgs e)
@@ -86,6 +94,200 @@ namespace DocumentRecognition.WindowsForms
         {
             numDpi.Value = DrawingRecognitionOptions.DefaultDpi;
             chkCleanImage.Checked = true;
+
+            ApplyEngineSettings(new OcrSettings());
+        }
+
+        private static readonly InferenceExecutionProvider[] ProviderOptions =
+        {
+            InferenceExecutionProvider.Auto,
+            InferenceExecutionProvider.Cpu,
+            InferenceExecutionProvider.DirectMl
+        };
+
+        private void PopulateEngineSettings()
+        {
+            var settings = GetCurrentSettingsOrFallback(out var settingsError);
+
+            cmbProvider.BeginUpdate();
+            cmbProvider.Items.Clear();
+
+            foreach (var provider in ProviderOptions)
+                cmbProvider.Items.Add(GetProviderTitle(provider));
+
+            cmbProvider.EndUpdate();
+
+            var index = Array.IndexOf(ProviderOptions, settings.Provider);
+            cmbProvider.SelectedIndex = index >= 0 ? index : 0;
+
+            UpdateModelsPathLabel(settings);
+
+            if (settingsError != null)
+                SetSettingsStatus(settingsError, isError: true);
+        }
+
+        /// <summary>
+        /// Возвращает текущие настройки или безопасный дефолт, если конфигурация
+        /// некорректна (например, пропала папка с моделями).
+        /// </summary>
+        private OcrSettings GetCurrentSettingsOrFallback(out string? error)
+        {
+            try
+            {
+                error = null;
+                return _runtimeSettings.Current;
+            }
+            catch (OptionsValidationException ex)
+            {
+                error = "Настройки моделей некорректны: " + ex.Message;
+                return new OcrSettings();
+            }
+        }
+
+        private void UpdateModelsPathLabel(OcrSettings settings)
+        {
+            lblModelsPath.Text = $"Модели: {settings.ResolveModelsDirectory()}";
+        }
+
+        private void SetSettingsStatus(string? text, bool isError = false)
+        {
+            lblEngineSettingsStatus.Text = text ?? string.Empty;
+            lblEngineSettingsStatus.ForeColor = isError ? Color.Firebrick : SystemColors.GrayText;
+        }
+
+        private static string GetProviderTitle(InferenceExecutionProvider provider)
+        {
+            switch (provider)
+            {
+                case InferenceExecutionProvider.Cpu:
+                    return "CPU";
+                case InferenceExecutionProvider.DirectMl:
+                    return "DirectML (GPU)";
+                default:
+                    return "Auto (DirectML → CPU)";
+            }
+        }
+
+        private void btnChangeModelsDir_Click(object? sender, EventArgs e)
+        {
+            var current = GetCurrentSettingsOrFallback(out _);
+
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = "Выберите каталог с ONNX-моделями",
+                UseDescriptionForTitle = true
+            };
+
+            var modelsDirectory = current.ResolveModelsDirectory();
+
+            if (Directory.Exists(modelsDirectory))
+                dialog.SelectedPath = modelsDirectory;
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            var settings = current.Copy();
+
+            // Абсолютный путь: не зависит от расположения приложения.
+            settings.ModelsDir = dialog.SelectedPath;
+
+            ApplyEngineSettings(settings);
+        }
+
+        private void btnResetModelsDir_Click(object? sender, EventArgs e)
+        {
+            var settings = GetCurrentSettingsOrFallback(out _).Copy();
+
+            // Дефолт — папка OnnxModels рядом с приложением.
+            settings.ModelsDir = new OcrSettings().ModelsDir;
+
+            ApplyEngineSettings(settings);
+        }
+
+        private void btnApplyEngineSettings_Click(object? sender, EventArgs e)
+        {
+            var settings = GetCurrentSettingsOrFallback(out _).Copy();
+            settings.Provider = cmbProvider.SelectedIndex >= 0
+                ? ProviderOptions[cmbProvider.SelectedIndex]
+                : InferenceExecutionProvider.Auto;
+
+            ApplyEngineSettings(settings);
+        }
+
+        /// <summary>
+        /// Проверяет наличие моделей и, если всё на месте, применяет настройки
+        /// и сохраняет их в пользовательский файл.
+        /// </summary>
+        private void ApplyEngineSettings(OcrSettings settings)
+        {
+            var errors = settings.Validate();
+
+            if (errors.Count > 0)
+            {
+                MessageBox.Show(
+                    this,
+                    string.Join(Environment.NewLine, errors),
+                    "Модели не найдены",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                SetSettingsStatus($"Не применено: проблем с моделями — {errors.Count}.", isError: true);
+                return;
+            }
+
+            try
+            {
+                _runtimeSettings.Apply(settings);
+                SaveEngineSettings(settings);
+                PopulateEngineSettings();
+
+                SetSettingsStatus($"{DateTime.Now:HH:mm:ss} — применено; изменённые модели перезагрузятся при следующем распознавании.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Ошибка применения настроек", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                SetSettingsStatus("Не удалось применить настройки.", isError: true);
+            }
+        }
+
+        /// <summary>
+        /// Сохраняет настройки движков в пользовательский файл, чтобы они применялись
+        /// и после перезапуска приложения.
+        /// </summary>
+        private static void SaveEngineSettings(OcrSettings settings)
+        {
+            try
+            {
+                var directory = Path.GetDirectoryName(Program.SettingsFilePath);
+
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+
+                var payload = new Dictionary<string, object?>
+                {
+                    [OcrSettings.SectionName] = new Dictionary<string, object?>
+                    {
+                        [nameof(OcrSettings.ModelsDir)] = settings.ModelsDir,
+                        [nameof(OcrSettings.DetModel)] = settings.DetModel,
+                        [nameof(OcrSettings.ClsModel)] = settings.ClsModel,
+                        [nameof(OcrSettings.RecModel)] = settings.RecModel,
+                        [nameof(OcrSettings.DictFile)] = settings.DictFile,
+                        [nameof(OcrSettings.DrawingLayoutDetModel)] = settings.DrawingLayoutDetModel,
+                        [nameof(OcrSettings.DocOrientationClsModel)] = settings.DocOrientationClsModel,
+                        [nameof(OcrSettings.WiredTableCellDetModel)] = settings.WiredTableCellDetModel,
+                        [nameof(OcrSettings.Provider)] = settings.Provider.ToString(),
+                        [nameof(OcrSettings.Threads)] = settings.Threads
+                    }
+                };
+
+                File.WriteAllText(
+                    Program.SettingsFilePath,
+                    JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Не удалось сохранить настройки: {ex.Message}");
+            }
         }
 
         private void imageViewer1_HoveredRegionChanged(object? sender, RecognitionRegionEventArgs e)

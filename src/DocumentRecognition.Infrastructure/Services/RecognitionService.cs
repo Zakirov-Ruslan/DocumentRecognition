@@ -3,7 +3,9 @@ using DocumentRecognition.Core.Interfaces;
 using DocumentRecognition.Core.Models;
 using DocumentRecognition.Core.Models.Options;
 using DocumentRecognition.Core.Models.Results;
+using DocumentRecognition.Infrastructure.Extensions;
 using DocumentRecognition.OnnxRecognizer;
+using Microsoft.Extensions.Options;
 using Ocr;
 using Ocr.Models;
 using OpenCvSharp;
@@ -18,39 +20,54 @@ namespace DocumentRecognition.Infrastructure.Services
 {
     public class RecognitionService : IRecognizer
     {
-        private readonly DocOrientationClassifier _docOrientationClassifier;
-        private readonly DrawingLayoutDetector _drawingLayoutDetector;
-        private readonly WiredTableCellDetector _wiredTableCellDetector;
-        private readonly OcrLite _ocrLite;
+        private readonly IOptionsMonitor<OcrSettings> _settingsMonitor;
         private readonly SemaphoreSlim _recognitionLock = new SemaphoreSlim(1, 1);
 
-        public RecognitionService(OcrLite ocrLite, DrawingLayoutDetector drawingLayoutDetector, DocOrientationClassifier docOrientationClassifier, WiredTableCellDetector wiredTableCellDetector)
+        /// <summary>
+        /// Активный набор движков. Пересоздаётся под новый снимок настроек
+        /// при следующем распознавании — без перезапуска приложения.
+        /// </summary>
+        private RecognitionEngines _engines;
+
+        public RecognitionService(IOptionsMonitor<OcrSettings> settingsMonitor)
         {
-            _ocrLite = ocrLite;
-            _drawingLayoutDetector = drawingLayoutDetector;
-            _docOrientationClassifier = docOrientationClassifier;
-            _wiredTableCellDetector = wiredTableCellDetector;
+            _settingsMonitor = settingsMonitor ?? throw new ArgumentNullException(nameof(settingsMonitor));
         }
 
         /// <summary>
-        /// Ленивая идемпотентная инициализация всех движков (<see cref="IInferenceEngine"/>):
-        /// после первого успешного вызова превращается в no-op.
+        /// Возвращает набор движков, соответствующий текущим настройкам.
+        /// Вызывается под <see cref="_recognitionLock"/>, поэтому подмена движков
+        /// не может произойти во время распознавания.
         /// </summary>
-        private Task EnsureEnginesInitializedAsync()
+        private async Task<RecognitionEngines> GetEnginesAsync()
         {
-            if (_ocrLite.IsInitialized
-                && _drawingLayoutDetector.IsInitialized
-                && _docOrientationClassifier.IsInitialized
-                && _wiredTableCellDetector.IsInitialized)
+            var settings = _settingsMonitor.CurrentValue;
+            var current = _engines;
+
+            if (current != null && current.Matches(settings))
+                return current;
+
+            var created = RecognitionEngines.Create(settings, current);
+
+            try
             {
-                return Task.CompletedTask;
+                // Загружаются только новые движки, переиспользованные — no-op.
+                await created.InitializeAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                // Новые модели поднялись неудачно — освобождаем только созданное,
+                // старый набор продолжаем использовать.
+                created.DisposeExcept(current);
+                throw;
             }
 
-            return Task.WhenAll(
-                _ocrLite.InitializeAsync(),
-                _drawingLayoutDetector.InitializeAsync(),
-                _docOrientationClassifier.InitializeAsync(),
-                _wiredTableCellDetector.InitializeAsync());
+            _engines = created;
+            current?.DisposeExcept(created);
+
+            Console.WriteLine("[RecognitionService] Набор inference-движков пересоздан под новые настройки.");
+
+            return created;
         }
 
         public async Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, DrawingRecognitionOptions options)
@@ -66,7 +83,9 @@ namespace DocumentRecognition.Infrastructure.Services
 
             try
             {
-                return await RecognizeDrawingCore(jpegStream, options).ConfigureAwait(false);
+                var engines = await GetEnginesAsync().ConfigureAwait(false);
+
+                return await RecognizeDrawingCore(jpegStream, options, engines).ConfigureAwait(false);
             }
             finally
             {
@@ -74,10 +93,11 @@ namespace DocumentRecognition.Infrastructure.Services
             }
         }
 
-        private async Task<DrawingRecognitionResult> RecognizeDrawingCore(Stream jpegStream, DrawingRecognitionOptions options)
+        private async Task<DrawingRecognitionResult> RecognizeDrawingCore(
+            Stream jpegStream,
+            DrawingRecognitionOptions options,
+            RecognitionEngines engines)
         {
-            await EnsureEnginesInitializedAsync().ConfigureAwait(false);
-
             if (jpegStream.CanSeek)
             {
                 jpegStream.Seek(0, SeekOrigin.Begin);
@@ -97,9 +117,9 @@ namespace DocumentRecognition.Infrastructure.Services
 
             using (Mat srcMat = Cv2.ImDecode(imageBytes, ImreadModes.Color))
             {
-                using (var orientedMat = _docOrientationClassifier.EnsureImageOrientation(srcMat))
+                using (var orientedMat = engines.OrientationClassifier.EnsureImageOrientation(srcMat))
                 {
-                    var layoutDetections = _drawingLayoutDetector.Detect(orientedMat);
+                    var layoutDetections = engines.LayoutDetector.Detect(orientedMat);
 
                     var detectionsDict = layoutDetections
                         .GroupBy(d => d.Label)
@@ -138,7 +158,7 @@ namespace DocumentRecognition.Infrastructure.Services
                                     batchSize: 32
                                 );
 
-                                var ocrResult = _ocrLite.Detect(roiMat, detectOptions);
+                                var ocrResult = engines.OcrLite.Detect(roiMat, detectOptions);
 
                                 technicalRequirementLines.Add(ocrResult.StrRes);
 
@@ -177,7 +197,7 @@ namespace DocumentRecognition.Infrastructure.Services
                                 batchSize: 32
                             );
 
-                            var titleBlockOcrResult = _ocrLite.Detect(roiMat, ocrOptions);
+                            var titleBlockOcrResult = engines.OcrLite.Detect(roiMat, ocrOptions);
 
                             var processor = new TitleBlockProcessor();
                             matchedCells = processor.ProcessTitleBlockWithOcr(roiMat, titleBlockOcrResult);
@@ -204,12 +224,12 @@ namespace DocumentRecognition.Infrastructure.Services
 
                         using (Mat roiMat = new Mat(orientedMat, additionalGraphs.Box))
                         {
-                            var additionalGraphsLeftCells = _wiredTableCellDetector.Detect(roiMat);
+                            var additionalGraphsLeftCells = engines.TableCellDetector.Detect(roiMat);
 
                             // Рамки рисуются только для отладочного изображения;
                             // при cleanImage координаты доступны через Regions.
                             if (!cleanImage)
-                                _wiredTableCellDetector.DrawDetections(roiMat, additionalGraphsLeftCells);
+                                engines.TableCellDetector.DrawDetections(roiMat, additionalGraphsLeftCells);
 
                             AddTableCellRegions(
                                 regions,
@@ -226,10 +246,10 @@ namespace DocumentRecognition.Infrastructure.Services
 
                         using (Mat roiMat = new Mat(orientedMat, configurationTable.Box))
                         {
-                            var configTableCells = _wiredTableCellDetector.Detect(roiMat);
+                            var configTableCells = engines.TableCellDetector.Detect(roiMat);
 
                             if (!cleanImage)
-                                _wiredTableCellDetector.DrawDetections(roiMat, configTableCells);
+                                engines.TableCellDetector.DrawDetections(roiMat, configTableCells);
 
                             AddTableCellRegions(
                                 regions,
@@ -246,10 +266,10 @@ namespace DocumentRecognition.Infrastructure.Services
 
                         using (Mat roiMat = new Mat(orientedMat, parameterTable.Box))
                         {
-                            var parameterTableCells = _wiredTableCellDetector.Detect(roiMat);
+                            var parameterTableCells = engines.TableCellDetector.Detect(roiMat);
 
                             if (!cleanImage)
-                                _wiredTableCellDetector.DrawDetections(roiMat, parameterTableCells);
+                                engines.TableCellDetector.DrawDetections(roiMat, parameterTableCells);
 
                             AddTableCellRegions(
                                 regions,
@@ -262,7 +282,7 @@ namespace DocumentRecognition.Infrastructure.Services
 
                     var debugImage = cleanImage
                         ? orientedMat
-                        : _drawingLayoutDetector.DrawDetections(orientedMat, layoutDetections);
+                        : engines.LayoutDetector.DrawDetections(orientedMat, layoutDetections);
 
                     List<Signature> signatures = new List<Signature>();
                     for (int row = 5; row <= 10; row++)

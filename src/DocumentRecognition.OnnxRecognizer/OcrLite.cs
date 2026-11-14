@@ -74,6 +74,11 @@ namespace Ocr
         public int ThreadNum { get; set; } = (int)(Environment.ProcessorCount * 0.7);
 
         /// <summary>
+        /// Провайдер инференса для всех трёх моделей (det/cls/rec).
+        /// </summary>
+        public InferenceExecutionProvider Provider { get; set; } = InferenceExecutionProvider.Auto;
+
+        /// <summary>
         /// Default constructor.
         /// Creates instances of all internal neural networks
         /// </summary>
@@ -175,6 +180,11 @@ namespace Ocr
                 var rec = RecPath;
                 var keys = KeyDicPath;
                 var threads = ThreadNum;
+                var provider = Provider;
+
+                _dbNet.Provider = provider;
+                _angleNet.Provider = provider;
+                _crnnNet.Provider = provider;
 
                 await Task.WhenAll(
                     Task.Run(() => _dbNet.InitModel(det, threads)),

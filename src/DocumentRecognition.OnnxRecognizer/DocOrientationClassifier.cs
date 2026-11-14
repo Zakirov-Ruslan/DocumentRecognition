@@ -11,16 +11,23 @@ public class DocOrientationClassifier : IDisposable, IInferenceEngine
 {
     private readonly Lazy<InferenceSession> _session;
     private readonly string _modelPath;
+    private readonly InferenceExecutionProvider _provider;
+    private readonly int _threads;
     private readonly int _inputSize = 224;
 
     private readonly float[] _mean = { 0.485f, 0.456f, 0.406f };
     private readonly float[] _std = { 0.229f, 0.224f, 0.225f };
 
-    public DocOrientationClassifier(string onnxPath)
+    public DocOrientationClassifier(
+        string onnxPath,
+        InferenceExecutionProvider provider = InferenceExecutionProvider.Auto,
+        int threads = 0)
     {
         // Конструктор дешёвый: модель грузится лениво при первом инференсе
         // или при явном вызове InitializeAsync() — как в OcrLite.InitModels().
         _modelPath = onnxPath;
+        _provider = provider;
+        _threads = threads;
         _session = new Lazy<InferenceSession>(CreateSession, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
@@ -40,7 +47,12 @@ public class DocOrientationClassifier : IDisposable, IInferenceEngine
     }
 
     private InferenceSession CreateSession() =>
-        OnnxSessionFactory.Create(_modelPath, nameof(DocOrientationClassifier), GraphOptimizationLevel.ORT_ENABLE_ALL);
+        OnnxSessionFactory.Create(
+            _modelPath,
+            nameof(DocOrientationClassifier),
+            _provider,
+            _threads,
+            GraphOptimizationLevel.ORT_ENABLE_ALL);
 
     private InferenceSession Session => _session.Value;
 

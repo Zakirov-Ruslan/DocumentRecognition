@@ -3,6 +3,7 @@
  * Original: https://github.com/RapidAI/RapidOCRCSharp
  */
 
+using DocumentRecognition.OnnxRecognizer;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Ocr.Models;
@@ -26,30 +27,20 @@ namespace Ocr
 
         internal TextLineOrientationClassifier() { }
 
+        /// <summary>Провайдер инференса, задаваемый OCR-движком перед инициализацией.</summary>
+        public InferenceExecutionProvider Provider { get; set; } = InferenceExecutionProvider.Auto;
+
         public async Task InitModel(string path, int numThread)
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
+                _angleNet = OnnxSessionFactory.Create(
+                    path,
+                    "AngleNet",
+                    Provider,
+                    numThread,
+                    GraphOptimizationLevel.ORT_ENABLE_EXTENDED);
 
-                try
-                {
-                    op.AppendExecutionProvider_DML();
-                    Console.WriteLine($"[AngleNet] DirectML initialized on device");
-                }
-                catch (Exception dmlEx)
-                {
-                    // Fallback CPU, if DirectML now awailable
-                    Console.WriteLine($"[AngleNet] DirectML failed ({dmlEx.Message}), falling back to CPU.");
-
-                    op.AppendExecutionProvider_CPU(0);
-
-                    op.InterOpNumThreads = numThread;
-                    op.IntraOpNumThreads = numThread;
-                }
-
-                _angleNet = new InferenceSession(path, op);
                 _inputNames = _angleNet.InputMetadata.Keys.ToList();
 
                 await Task.CompletedTask;

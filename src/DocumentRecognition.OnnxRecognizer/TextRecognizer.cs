@@ -3,6 +3,7 @@
  * Original: https://github.com/RapidAI/RapidOCRCSharp
  */
 
+using DocumentRecognition.OnnxRecognizer;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Ocr.Models;
@@ -28,31 +29,20 @@ namespace Ocr
 
         internal TextRecognizer() { }
 
+        /// <summary>Провайдер инференса, задаваемый OCR-движком перед инициализацией.</summary>
+        public InferenceExecutionProvider Provider { get; set; } = InferenceExecutionProvider.Auto;
+
         public async Task InitModel(string path, string keysPath, int numThread)
         {
             try
             {
-                SessionOptions op = new SessionOptions();
+                _crnnNet = OnnxSessionFactory.Create(
+                    path,
+                    "CrnnNet",
+                    Provider,
+                    numThread,
+                    GraphOptimizationLevel.ORT_ENABLE_EXTENDED);
 
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-
-                try
-                {
-                    op.AppendExecutionProvider_DML();
-                    Console.WriteLine($"[CrnnNet] DirectML initialized on device");
-                }
-                catch (Exception dmlEx)
-                {
-                    // Fallback CPU, if DirectML now awailable
-                    Console.WriteLine($"[CrnnNet] DirectML failed ({dmlEx.Message}), falling back to CPU.");
-
-                    op.AppendExecutionProvider_CPU(0);
-
-                    op.InterOpNumThreads = numThread;
-                    op.IntraOpNumThreads = numThread;
-                }
-
-                _crnnNet = new InferenceSession(path, op);
                 _inputNames = _crnnNet.InputMetadata.Keys.ToList();
                 _keys = InitKeys(keysPath);
 

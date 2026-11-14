@@ -21,55 +21,20 @@ namespace DocumentRecognition.Infrastructure.Extensions
                 .Bind(configuration.GetSection(OcrSettings.SectionName))
                 .ValidateOnStart();
 
-            // Тяжёлые зависимости (модели ONNX) создаются один раз на приложение.
+            // Проверка наличия моделей: ошибка всплывает при старте/обращении к настройкам,
+            // а не посреди распознавания.
+            services.AddSingleton<IValidateOptions<OcrSettings>, OcrSettingsValidator>();
+
+            // Нужен для смены настроек движков в рантайме (WinForms/WebApi reloadOnChange).
+            services.AddSingleton(configuration);
+            services.AddSingleton<IRuntimeOcrSettings, RuntimeOcrSettings>();
+
+            // Тяжёлые зависимости (модели ONNX) создаются лениво внутри RecognitionService
+            // и пересоздаются при изменении OcrSettings без перезапуска приложения.
             services.AddSingleton<IRecognizer, RecognitionService>();
             services.AddSingleton<IPdfServiceFactory, MuPdfServiceFactory>();
 
             services.AddScoped<DocumentRecognitionService>();
-
-            services.AddSingleton<DrawingLayoutDetector>(sp =>
-            {
-                var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
-                var modelsPath = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
-                var modelPath = Path.Combine(modelsPath, settings.DrawingLayoutDetModel);
-
-                return new DrawingLayoutDetector(modelPath);
-            });
-
-            services.AddSingleton<DocOrientationClassifier>(sp =>
-            {
-                var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
-                var modelsPath = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
-                var modelPath = Path.Combine(modelsPath, settings.DocOrientationClsModel);
-
-                return new DocOrientationClassifier(modelPath);
-            });
-
-            services.AddSingleton<WiredTableCellDetector>(sp =>
-            {
-                var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
-                var modelsPath = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
-                var modelPath = Path.Combine(modelsPath, settings.WiredTableCellDetModel);
-
-                return new WiredTableCellDetector(modelPath);
-            });
-
-            services.AddSingleton<OcrLite>(sp =>
-            {
-                var settings = sp.GetRequiredService<IOptions<OcrSettings>>().Value;
-                var path = Path.Combine(AppContext.BaseDirectory, settings.ModelsDir);
-
-                var engine = new OcrLite
-                {
-                    DetPath = Path.Combine(path, settings.DetModel),
-                    ClsPath = Path.Combine(path, settings.ClsModel),
-                    RecPath = Path.Combine(path, settings.RecModel),
-                    KeyDicPath = Path.Combine(path, settings.DictFile),
-                };
-
-                // Dont call InitModels here, it will be invoked async
-                return engine;
-            });
 
             return services;
         }
@@ -88,5 +53,36 @@ namespace DocumentRecognition.Infrastructure.Extensions
         public string DocOrientationClsModel { get; set; } = "techdoc_ori_cls.onnx";
         public string WiredTableCellDetModel { get; set; } = "RT-DETR-L_wired_table_cell_det.onnx";
 
+        /// <summary>
+        /// Провайдер выполнения ONNX-инференса.
+        /// </summary>
+        public InferenceExecutionProvider Provider { get; set; } = InferenceExecutionProvider.Auto;
+
+        /// <summary>
+        /// Количество потоков CPU для ONNX-сессий (0 — авто).
+        /// </summary>
+        public int Threads { get; set; }
+
+        /// <summary>
+        /// Каталог моделей: относительный путь считается от каталога приложения,
+        /// абсолютный используется как есть.
+        /// </summary>
+        public string ResolveModelsDirectory()
+        {
+            if (string.IsNullOrWhiteSpace(ModelsDir))
+                return AppContext.BaseDirectory;
+
+            return Path.IsPathRooted(ModelsDir)
+                ? ModelsDir
+                : Path.Combine(AppContext.BaseDirectory, ModelsDir);
+        }
+
+        /// <summary>
+        /// Копия настроек (для изменения в UI без мутации текущего снимка).
+        /// </summary>
+        public OcrSettings Copy()
+        {
+            return (OcrSettings)MemberwiseClone();
+        }
     }
 }

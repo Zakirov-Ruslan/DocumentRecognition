@@ -4,6 +4,7 @@
  */
 
 using Clipper2Lib;
+using DocumentRecognition.OnnxRecognizer;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Ocr.Models;
@@ -29,32 +30,22 @@ namespace Ocr
 
         private List<string> _inputNames;
 
+        /// <summary>Провайдер инференса, задаваемый OCR-движком перед инициализацией.</summary>
+        public InferenceExecutionProvider Provider { get; set; } = InferenceExecutionProvider.Auto;
+
         internal TextDetector() { }
 
         public async Task InitModel(string path, int numThread)
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
+                _dbNet = OnnxSessionFactory.Create(
+                    path,
+                    "DbNet",
+                    Provider,
+                    numThread,
+                    GraphOptimizationLevel.ORT_ENABLE_EXTENDED);
 
-                try
-                {
-                    op.AppendExecutionProvider_DML();
-                    Console.WriteLine($"[DbNet] DirectML initialized on device");
-                }
-                catch (Exception dmlEx)
-                {
-                    // Fallback CPU, if DirectML now awailable
-                    Console.WriteLine($"[DbNet] DirectML failed ({dmlEx.Message}), falling back to CPU.");
-
-                    op.AppendExecutionProvider_CPU(0);
-
-                    op.InterOpNumThreads = numThread;
-                    op.IntraOpNumThreads = numThread;
-                }
-
-                _dbNet = new InferenceSession(path, op);
                 _inputNames = _dbNet.InputMetadata.Keys.ToList();
 
                 await Task.CompletedTask;
