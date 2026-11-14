@@ -1,4 +1,5 @@
-﻿using DocumentRecognition.Core.Models.Results;
+﻿using DocumentRecognition.Core.Models.Options;
+using DocumentRecognition.Core.Models.Results;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -18,11 +19,9 @@ namespace DocumentRecognition.Core.Interfaces
         /// Распознаёт чертёж на изображении.
         /// </summary>
         /// <param name="jpegStream">Изображение страницы документа.</param>
-        /// <param name="conversionDpi">DPI, с которым был растеризован документ.</param>
-        /// <param name="cleanImage">
-        /// <c>true</c> — вернуть изображение без отрисованных отладочных рамок детекций
-        /// (координаты блоков доступны через <see cref="DrawingRecognitionResult.Regions"/>).
+        /// <param name="options">
+        /// Параметры обработки: DPI растеризации и режим отладочного изображения.
         /// </param>
-        Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi, bool cleanImage = true);
+        Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, DrawingRecognitionOptions options);
     }
 }

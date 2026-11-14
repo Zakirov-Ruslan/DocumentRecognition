@@ -43,11 +43,19 @@
             colValue = new DataGridViewTextBoxColumn();
             tabPageRequirements = new TabPage();
             txtTechnicalRequirements = new TextBox();
+            tabPageSettings = new TabPage();
+            btnResetSettings = new Button();
+            chkCleanImage = new CheckBox();
+            lblDpiHint = new Label();
+            numDpi = new NumericUpDown();
+            lblDpi = new Label();
             tabControl1.SuspendLayout();
             tabPageTitleBlock.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvSignatures).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dgvTitleBlock).BeginInit();
             tabPageRequirements.SuspendLayout();
+            tabPageSettings.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)numDpi).BeginInit();
             SuspendLayout();
             // 
             // imageViewer1
@@ -77,6 +85,7 @@
             tabControl1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             tabControl1.Controls.Add(tabPageTitleBlock);
             tabControl1.Controls.Add(tabPageRequirements);
+            tabControl1.Controls.Add(tabPageSettings);
             tabControl1.Location = new Point(644, 12);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
@@ -200,6 +209,71 @@
             txtTechnicalRequirements.Size = new Size(438, 460);
             txtTechnicalRequirements.TabIndex = 0;
             // 
+            // tabPageSettings
+            // 
+            tabPageSettings.Controls.Add(btnResetSettings);
+            tabPageSettings.Controls.Add(chkCleanImage);
+            tabPageSettings.Controls.Add(lblDpiHint);
+            tabPageSettings.Controls.Add(numDpi);
+            tabPageSettings.Controls.Add(lblDpi);
+            tabPageSettings.Location = new Point(4, 24);
+            tabPageSettings.Name = "tabPageSettings";
+            tabPageSettings.Padding = new Padding(6);
+            tabPageSettings.Size = new Size(450, 472);
+            tabPageSettings.TabIndex = 2;
+            tabPageSettings.Text = "Настройки";
+            tabPageSettings.UseVisualStyleBackColor = true;
+            // 
+            // lblDpi
+            // 
+            lblDpi.AutoSize = true;
+            lblDpi.Location = new Point(12, 18);
+            lblDpi.Name = "lblDpi";
+            lblDpi.Size = new Size(94, 15);
+            lblDpi.TabIndex = 0;
+            lblDpi.Text = "DPI растеризации:";
+            // 
+            // numDpi
+            // 
+            numDpi.Increment = new decimal(new int[] { 50, 0, 0, 0 });
+            numDpi.Location = new Point(12, 40);
+            numDpi.Maximum = new decimal(new int[] { 900, 0, 0, 0 });
+            numDpi.Minimum = new decimal(new int[] { 200, 0, 0, 0 });
+            numDpi.Name = "numDpi";
+            numDpi.Size = new Size(120, 23);
+            numDpi.TabIndex = 1;
+            numDpi.Value = new decimal(new int[] { 200, 0, 0, 0 });
+            // 
+            // lblDpiHint
+            // 
+            lblDpiHint.Location = new Point(140, 40);
+            lblDpiHint.Name = "lblDpiHint";
+            lblDpiHint.Size = new Size(294, 48);
+            lblDpiHint.TabIndex = 2;
+            lblDpiHint.Text = "Обычно 200–900. Выше — точнее распознавание, но дольше и больше памяти.";
+            // 
+            // chkCleanImage
+            // 
+            chkCleanImage.AutoSize = true;
+            chkCleanImage.Checked = true;
+            chkCleanImage.CheckState = CheckState.Checked;
+            chkCleanImage.Location = new Point(12, 100);
+            chkCleanImage.Name = "chkCleanImage";
+            chkCleanImage.Size = new Size(344, 19);
+            chkCleanImage.TabIndex = 3;
+            chkCleanImage.Text = "Чистое изображение (без отладочных рамок детекций)";
+            chkCleanImage.UseVisualStyleBackColor = true;
+            // 
+            // btnResetSettings
+            // 
+            btnResetSettings.Location = new Point(12, 134);
+            btnResetSettings.Name = "btnResetSettings";
+            btnResetSettings.Size = new Size(160, 29);
+            btnResetSettings.TabIndex = 4;
+            btnResetSettings.Text = "Сбросить настройки";
+            btnResetSettings.UseVisualStyleBackColor = true;
+            btnResetSettings.Click += btnResetSettings_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -218,6 +292,9 @@
             ((System.ComponentModel.ISupportInitialize)dgvTitleBlock).EndInit();
             tabPageRequirements.ResumeLayout(false);
             tabPageRequirements.PerformLayout();
+            tabPageSettings.ResumeLayout(false);
+            tabPageSettings.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)numDpi).EndInit();
             ResumeLayout(false);
         }
 
@@ -237,5 +314,11 @@
         private DataGridViewTextBoxColumn colDate;
         private TabPage tabPageRequirements;
         private TextBox txtTechnicalRequirements;
+        private TabPage tabPageSettings;
+        private Label lblDpi;
+        private NumericUpDown numDpi;
+        private Label lblDpiHint;
+        private CheckBox chkCleanImage;
+        private Button btnResetSettings;
     }
 }

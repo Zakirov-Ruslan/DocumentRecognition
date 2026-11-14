@@ -1,7 +1,9 @@
 
 using DocumentRecognition.Application.Models;
 using DocumentRecognition.Application.Services;
+using DocumentRecognition.Core.Models.Options;
 using DocumentRecognition.Infrastructure.Extensions;
+using DocumentRecognition.WebApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Encodings.Web;
 using System.Text.Json.Serialization;
@@ -43,19 +45,32 @@ namespace DocumentRecognition.WebApi
             app.UseAuthorization();
 
             app.MapPost("/recognize", async (
-                    [FromForm] IFormFile file,
+                    [FromForm] RecognizeDrawingRequest request,
                     [FromQuery] bool? includeDebugImage,
                     [FromQuery] bool? includeRegions,
                     [FromServices] DocumentRecognitionService recognitionService) =>
                 {
-                    if (file is null || file.Length == 0)
+                    if (request.File is null || request.File.Length == 0)
                         return Results.BadRequest("PDF-файл не передан (ожидается multipart/form-data, поле \"file\").");
+
+                    if (request.Dpi is int requestedDpi && !DrawingRecognitionOptions.IsDpiInRange(requestedDpi))
+                    {
+                        return Results.BadRequest(
+                            $"Некорректный dpi: {requestedDpi}. Допустимый диапазон: " +
+                            $"{DrawingRecognitionOptions.MinDpi}–{DrawingRecognitionOptions.MaxDpi}.");
+                    }
+
+                    var options = new DrawingRecognitionOptions
+                    {
+                        Dpi = request.Dpi ?? DrawingRecognitionOptions.DefaultDpi,
+                        CleanImage = request.CleanImage ?? true
+                    };
 
                     try
                     {
-                        using var inputStream = file.OpenReadStream();
+                        using var inputStream = request.File.OpenReadStream();
 
-                        var result = await recognitionService.ProcessAsync(inputStream);
+                        var result = await recognitionService.ProcessAsync(inputStream, options);
                         var response = DrawingRecognitionResultDto.FromResult(result, includeDebugImage == true, includeRegions == true);
 
                         return Results.Ok(response);
@@ -69,13 +84,14 @@ namespace DocumentRecognition.WebApi
                     }
                 })
                 .DisableAntiforgery()
-                .Accepts<IFormFile>("multipart/form-data")
+                .Accepts<RecognizeDrawingRequest>("multipart/form-data")
                 .Produces<DrawingRecognitionResultDto>(StatusCodes.Status200OK)
                 .WithName("RecognizeDrawing")
                 .WithOpenApi(operation =>
                 {
                     operation.Summary = "Распознаёт чертёж и возвращает основную надпись и технические требования";
-                    operation.Description = "Принимает PDF в multipart/form-data (поле \"file\"). " +
+                    operation.Description = "Принимает PDF в multipart/form-data: file (обязательно), " +
+                        "dpi (200–900, по умолчанию 200), cleanImage (без отладочных рамок, по умолчанию true). " +
                         "Параметр includeDebugImage=true добавляет отладочное изображение в base64, " +
                         "includeRegions=true — координаты областей распознавания.";
                     return operation;

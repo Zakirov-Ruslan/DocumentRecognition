@@ -1,6 +1,7 @@
 ﻿using DocumentRecognition.Core.Enums;
 using DocumentRecognition.Core.Interfaces;
 using DocumentRecognition.Core.Models;
+using DocumentRecognition.Core.Models.Options;
 using DocumentRecognition.Core.Models.Results;
 using DocumentRecognition.OnnxRecognizer;
 using Ocr;
@@ -52,15 +53,20 @@ namespace DocumentRecognition.Infrastructure.Services
                 _wiredTableCellDetector.InitializeAsync());
         }
 
-        public async Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi, bool cleanImage = true)
+        public async Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, DrawingRecognitionOptions options)
         {
+            if (options == null)
+                options = new DrawingRecognitionOptions();
+
+            options.Normalize();
+
             // OcrLite и сессии ONNX не рассчитаны на параллельные вызовы,
             // поэтому распознавание сериализуется (актуально для WebApi).
             await _recognitionLock.WaitAsync().ConfigureAwait(false);
 
             try
             {
-                return await RecognizeDrawingCore(jpegStream, conversionDpi, cleanImage).ConfigureAwait(false);
+                return await RecognizeDrawingCore(jpegStream, options).ConfigureAwait(false);
             }
             finally
             {
@@ -68,7 +74,7 @@ namespace DocumentRecognition.Infrastructure.Services
             }
         }
 
-        private async Task<DrawingRecognitionResult> RecognizeDrawingCore(Stream jpegStream, int conversionDpi, bool cleanImage)
+        private async Task<DrawingRecognitionResult> RecognizeDrawingCore(Stream jpegStream, DrawingRecognitionOptions options)
         {
             await EnsureEnginesInitializedAsync().ConfigureAwait(false);
 
@@ -85,7 +91,9 @@ namespace DocumentRecognition.Infrastructure.Services
             }
 
             // mm to px scale
-            double scale = conversionDpi / 25.4;
+            double scale = options.Dpi / 25.4;
+
+            var cleanImage = options.CleanImage;
 
             using (Mat srcMat = Cv2.ImDecode(imageBytes, ImreadModes.Color))
             {
@@ -117,7 +125,7 @@ namespace DocumentRecognition.Infrastructure.Services
 
                             using (Mat roiMat = new Mat(orientedMat, detection.Box))
                             {
-                                var options = new DetectOptions(
+                                var detectOptions = new DetectOptions(
                                     padding: (int)(20 * scale),
                                     doAngle: false,
                                     mostAngle: false,
@@ -130,7 +138,7 @@ namespace DocumentRecognition.Infrastructure.Services
                                     batchSize: 32
                                 );
 
-                                var ocrResult = _ocrLite.Detect(roiMat, options);
+                                var ocrResult = _ocrLite.Detect(roiMat, detectOptions);
 
                                 technicalRequirementLines.Add(ocrResult.StrRes);
 
@@ -297,7 +305,7 @@ namespace DocumentRecognition.Infrastructure.Services
                         regions,
                         orientedMat.Width,
                         orientedMat.Height,
-                        conversionDpi);
+                        options.Dpi);
 
                     return res;
                 }

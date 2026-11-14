@@ -1,4 +1,5 @@
 ﻿using DocumentRecognition.Application.Services;
+using DocumentRecognition.Core.Models.Options;
 using DocumentRecognition.Core.Models.Results;
 using System.Text;
 
@@ -12,6 +13,11 @@ namespace DocumentRecognition.WindowsForms
         private readonly DocumentRecognitionService _recognitionService;
         private readonly Dictionary<string, DataGridViewRow> _titleBlockRowsByKey = new();
         private readonly Dictionary<string, DataGridViewRow> _signatureRowsByKey = new();
+
+        /// <summary>
+        /// Настройки распознавания, задаваемые на вкладке «Настройки».
+        /// </summary>
+        private readonly DrawingRecognitionOptions _recognitionOptions = new();
 
         /// <summary>
         /// Защита от рекурсии при синхронизации выбора между изображением и таблицами.
@@ -42,9 +48,7 @@ namespace DocumentRecognition.WindowsForms
             {
                 using var fs = new FileStream(openFileDialog.FileName, FileMode.Open, FileAccess.Read);
 
-                // cleanImage: рамки детекций на изображении не нужны — их рисует контрол
-                // интерактивно по Regions (подсветка при наведении).
-                var result = await _recognitionService.ProcessAsync(fs, cleanImage: true);
+                var result = await _recognitionService.ProcessAsync(fs, CreateRecognitionOptions());
 
                 ShowRecognitionImage(result);
                 ShowTitleBlock(result.TitleBlock);
@@ -64,6 +68,24 @@ namespace DocumentRecognition.WindowsForms
         {
             // Контрол сам декодирует изображение, владеет им и отрисовывает области результата.
             imageViewer1.LoadImage(result.DebugImage, result.Regions, result.Dpi);
+        }
+
+        /// <summary>
+        /// Собирает настройки распознавания из элементов вкладки «Настройки».
+        /// </summary>
+        private DrawingRecognitionOptions CreateRecognitionOptions()
+        {
+            _recognitionOptions.Dpi = (int)numDpi.Value;
+            _recognitionOptions.CleanImage = chkCleanImage.Checked;
+            _recognitionOptions.Normalize();
+
+            return _recognitionOptions;
+        }
+
+        private void btnResetSettings_Click(object? sender, EventArgs e)
+        {
+            numDpi.Value = DrawingRecognitionOptions.DefaultDpi;
+            chkCleanImage.Checked = true;
         }
 
         private void imageViewer1_HoveredRegionChanged(object? sender, RecognitionRegionEventArgs e)

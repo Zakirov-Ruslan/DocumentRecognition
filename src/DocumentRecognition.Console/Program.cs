@@ -1,5 +1,6 @@
 ﻿using DocumentRecognition.Application.Models;
 using DocumentRecognition.Application.Services;
+using DocumentRecognition.Core.Models.Options;
 using DocumentRecognition.Core.Models.Results;
 using DocumentRecognition.Infrastructure.Extensions;
 using Microsoft.Extensions.Configuration;
@@ -49,7 +50,7 @@ namespace DocumentRecognition.Console
 
             var dpiOption = new Option<int>("--dpi")
             {
-                Description = "DPI при конвертации PDF (по умолчанию 200)"
+                Description = "DPI при конвертации PDF, обычно 200–900 (по умолчанию 200)"
             };
 
             var rootCommand = new RootCommand(Description);
@@ -69,12 +70,19 @@ namespace DocumentRecognition.Console
                 }
 
                 var dpi = parseResult.GetValue(dpiOption);
-                if (dpi <= 0)
-                    dpi = 200;
+                var debugImagePath = parseResult.GetValue(debugImageOption);
+
+                var options = new DrawingRecognitionOptions
+                {
+                    Dpi = dpi,
+                    // Если запрошено отладочное изображение, рамки детекций в нём нужны.
+                    CleanImage = string.IsNullOrWhiteSpace(debugImagePath)
+                };
+                options.Normalize();
 
                 try
                 {
-                    var result = await RecognizeAsync(inputFile, dpi);
+                    var result = await RecognizeAsync(inputFile, options);
 
                     var text = parseResult.GetValue(jsonOption)
                         ? JsonSerializer.Serialize(DrawingRecognitionResultDto.FromResult(result), JsonOptions)
@@ -91,7 +99,6 @@ namespace DocumentRecognition.Console
                         await System.Console.Error.WriteLineAsync($"Результат записан в «{outputPath}»");
                     }
 
-                    var debugImagePath = parseResult.GetValue(debugImageOption);
                     if (!string.IsNullOrWhiteSpace(debugImagePath) && result.DebugImage is { Length: > 0 })
                     {
                         await File.WriteAllBytesAsync(debugImagePath, result.DebugImage, cancellationToken);
@@ -110,7 +117,7 @@ namespace DocumentRecognition.Console
             return await rootCommand.Parse(args).InvokeAsync();
         }
 
-        private static async Task<DrawingRecognitionResult> RecognizeAsync(FileInfo inputFile, int dpi)
+        private static async Task<DrawingRecognitionResult> RecognizeAsync(FileInfo inputFile, DrawingRecognitionOptions options)
         {
             using var serviceProvider = CreateServiceProvider();
             using var scope = serviceProvider.CreateScope();
@@ -119,7 +126,7 @@ namespace DocumentRecognition.Console
 
             using var stream = inputFile.OpenRead();
 
-            return await recognitionService.ProcessAsync(stream, dpi);
+            return await recognitionService.ProcessAsync(stream, options);
         }
 
         private static ServiceProvider CreateServiceProvider()

@@ -1,4 +1,5 @@
 ﻿using DocumentRecognition.Core.Interfaces;
+using DocumentRecognition.Core.Models.Options;
 using DocumentRecognition.Core.Models.Results;
 using System;
 using System.IO;
@@ -32,25 +33,38 @@ namespace DocumentRecognition.Application.Services
         /// Распознаёт чертёж (первую страницу PDF) и возвращает основную надпись и технические требования.
         /// </summary>
         /// <param name="inputStream">Поток с PDF-документом.</param>
-        /// <param name="dpi">DPI растеризации страницы.</param>
-        /// <param name="cleanImage">
-        /// <c>true</c> (по умолчанию) — изображение результата без отрисованных рамок детекций.
-        /// Координаты блоков при этом доступны в <see cref="DrawingRecognitionResult.Regions"/>.
-        /// </param>
-        public async Task<DrawingRecognitionResult> ProcessAsync(Stream inputStream, int dpi = 200, bool cleanImage = true)
+        /// <param name="options">Параметры обработки запроса (DPI, режим отладочного изображения).</param>
+        public async Task<DrawingRecognitionResult> ProcessAsync(Stream inputStream, DrawingRecognitionOptions options)
         {
             if (inputStream == null)
                 throw new ArgumentNullException(nameof(inputStream));
+
+            if (options == null)
+                options = new DrawingRecognitionOptions();
+
+            options.Normalize();
 
             using (var pdfDoc = await _pdfFactory.OpenDocumentAsync(inputStream))
             {
                 // TODO: Использовать встроенный текстовый слой PDF (pdfDoc.ExtractText()),
                 // когда понадобится гибридный режим распознавания.
-                using (var jpegStream = pdfDoc.ConvertPageToJpegAsync(0, dpi))
+                using (var jpegStream = pdfDoc.ConvertPageToJpegAsync(0, options.Dpi))
                 {
-                    return await _drawingRecognizer.RecognizeDrawing(jpegStream, dpi, cleanImage);
+                    return await _drawingRecognizer.RecognizeDrawing(jpegStream, options);
                 }
             }
+        }
+
+        /// <summary>
+        /// Перегрузка для простых сценариев: распознавание с указанным DPI.
+        /// </summary>
+        public Task<DrawingRecognitionResult> ProcessAsync(Stream inputStream, int dpi = DrawingRecognitionOptions.DefaultDpi, bool cleanImage = true)
+        {
+            return ProcessAsync(inputStream, new DrawingRecognitionOptions
+            {
+                Dpi = dpi,
+                CleanImage = cleanImage
+            });
         }
     }
 }
