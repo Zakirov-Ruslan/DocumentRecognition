@@ -109,7 +109,6 @@
             dgvSignatures.Location = new Point(6, 251);
             dgvSignatures.MultiSelect = false;
             dgvSignatures.Name = "dgvSignatures";
-            dgvSignatures.ReadOnly = true;
             dgvSignatures.RowHeadersVisible = false;
             dgvSignatures.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvSignatures.Size = new Size(438, 215);
@@ -120,7 +119,6 @@
             colSignatory.FillWeight = 40F;
             colSignatory.HeaderText = "Должность";
             colSignatory.Name = "colSignatory";
-            colSignatory.ReadOnly = true;
             colSignatory.SortMode = DataGridViewColumnSortMode.NotSortable;
             // 
             // colName
@@ -128,7 +126,6 @@
             colName.FillWeight = 40F;
             colName.HeaderText = "ФИО";
             colName.Name = "colName";
-            colName.ReadOnly = true;
             colName.SortMode = DataGridViewColumnSortMode.NotSortable;
             // 
             // colDate
@@ -136,7 +133,6 @@
             colDate.FillWeight = 20F;
             colDate.HeaderText = "Дата";
             colDate.Name = "colDate";
-            colDate.ReadOnly = true;
             colDate.SortMode = DataGridViewColumnSortMode.NotSortable;
             // 
             // lblSignatures
@@ -161,7 +157,6 @@
             dgvTitleBlock.Location = new Point(6, 6);
             dgvTitleBlock.MultiSelect = false;
             dgvTitleBlock.Name = "dgvTitleBlock";
-            dgvTitleBlock.ReadOnly = true;
             dgvTitleBlock.RowHeadersVisible = false;
             dgvTitleBlock.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvTitleBlock.Size = new Size(438, 220);
@@ -172,7 +167,6 @@
             colField.FillWeight = 45F;
             colField.HeaderText = "Поле";
             colField.Name = "colField";
-            colField.ReadOnly = true;
             colField.SortMode = DataGridViewColumnSortMode.NotSortable;
             // 
             // colValue
@@ -180,7 +174,6 @@
             colValue.FillWeight = 55F;
             colValue.HeaderText = "Значение";
             colValue.Name = "colValue";
-            colValue.ReadOnly = true;
             colValue.SortMode = DataGridViewColumnSortMode.NotSortable;
             // 
             // tabPageRequirements
@@ -201,7 +194,6 @@
             txtTechnicalRequirements.Location = new Point(6, 6);
             txtTechnicalRequirements.Multiline = true;
             txtTechnicalRequirements.Name = "txtTechnicalRequirements";
-            txtTechnicalRequirements.ReadOnly = true;
             txtTechnicalRequirements.ScrollBars = ScrollBars.Vertical;
             txtTechnicalRequirements.Size = new Size(438, 460);
             txtTechnicalRequirements.TabIndex = 0;
