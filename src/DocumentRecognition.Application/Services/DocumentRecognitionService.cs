@@ -31,7 +31,13 @@ namespace DocumentRecognition.Application.Services
         /// <summary>
         /// Распознаёт чертёж (первую страницу PDF) и возвращает основную надпись и технические требования.
         /// </summary>
-        public async Task<DrawingRecognitionResult> ProcessAsync(Stream inputStream, int dpi = 200)
+        /// <param name="inputStream">Поток с PDF-документом.</param>
+        /// <param name="dpi">DPI растеризации страницы.</param>
+        /// <param name="cleanImage">
+        /// <c>true</c> (по умолчанию) — изображение результата без отрисованных рамок детекций.
+        /// Координаты блоков при этом доступны в <see cref="DrawingRecognitionResult.Regions"/>.
+        /// </param>
+        public async Task<DrawingRecognitionResult> ProcessAsync(Stream inputStream, int dpi = 200, bool cleanImage = true)
         {
             if (inputStream == null)
                 throw new ArgumentNullException(nameof(inputStream));
@@ -42,7 +48,7 @@ namespace DocumentRecognition.Application.Services
                 // когда понадобится гибридный режим распознавания.
                 using (var jpegStream = pdfDoc.ConvertPageToJpegAsync(0, dpi))
                 {
-                    return await _drawingRecognizer.RecognizeDrawing(jpegStream, dpi);
+                    return await _drawingRecognizer.RecognizeDrawing(jpegStream, dpi, cleanImage);
                 }
             }
         }

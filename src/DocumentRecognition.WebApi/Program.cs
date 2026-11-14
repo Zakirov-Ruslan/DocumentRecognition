@@ -45,6 +45,7 @@ namespace DocumentRecognition.WebApi
             app.MapPost("/recognize", async (
                     [FromForm] IFormFile file,
                     [FromQuery] bool? includeDebugImage,
+                    [FromQuery] bool? includeRegions,
                     [FromServices] DocumentRecognitionService recognitionService) =>
                 {
                     if (file is null || file.Length == 0)
@@ -55,7 +56,7 @@ namespace DocumentRecognition.WebApi
                         using var inputStream = file.OpenReadStream();
 
                         var result = await recognitionService.ProcessAsync(inputStream);
-                        var response = DrawingRecognitionResultDto.FromResult(result, includeDebugImage == true);
+                        var response = DrawingRecognitionResultDto.FromResult(result, includeDebugImage == true, includeRegions == true);
 
                         return Results.Ok(response);
                     }
@@ -75,7 +76,8 @@ namespace DocumentRecognition.WebApi
                 {
                     operation.Summary = "Распознаёт чертёж и возвращает основную надпись и технические требования";
                     operation.Description = "Принимает PDF в multipart/form-data (поле \"file\"). " +
-                        "Параметр includeDebugImage=true добавляет отладочное изображение в base64.";
+                        "Параметр includeDebugImage=true добавляет отладочное изображение в base64, " +
+                        "includeRegions=true — координаты областей распознавания.";
                     return operation;
                 });
 

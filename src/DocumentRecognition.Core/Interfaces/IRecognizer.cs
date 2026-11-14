@@ -14,6 +14,15 @@ namespace DocumentRecognition.Core.Interfaces
     /// </remarks>
     public interface IRecognizer
     {
-        Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi);
+        /// <summary>
+        /// Распознаёт чертёж на изображении.
+        /// </summary>
+        /// <param name="jpegStream">Изображение страницы документа.</param>
+        /// <param name="conversionDpi">DPI, с которым был растеризован документ.</param>
+        /// <param name="cleanImage">
+        /// <c>true</c> — вернуть изображение без отрисованных отладочных рамок детекций
+        /// (координаты блоков доступны через <see cref="DrawingRecognitionResult.Regions"/>).
+        /// </param>
+        Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi, bool cleanImage = true);
     }
 }

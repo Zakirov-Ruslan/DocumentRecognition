@@ -1,4 +1,6 @@
-﻿using DocumentRecognition.Core.Interfaces;
+﻿using DocumentRecognition.Core.Enums;
+using DocumentRecognition.Core.Interfaces;
+using DocumentRecognition.Core.Models;
 using DocumentRecognition.Core.Models.Results;
 using DocumentRecognition.OnnxRecognizer;
 using Ocr;
@@ -50,7 +52,7 @@ namespace DocumentRecognition.Infrastructure.Services
                 _wiredTableCellDetector.InitializeAsync());
         }
 
-        public async Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi)
+        public async Task<DrawingRecognitionResult> RecognizeDrawing(Stream jpegStream, int conversionDpi, bool cleanImage = true)
         {
             // OcrLite и сессии ONNX не рассчитаны на параллельные вызовы,
             // поэтому распознавание сериализуется (актуально для WebApi).
@@ -58,7 +60,7 @@ namespace DocumentRecognition.Infrastructure.Services
 
             try
             {
-                return await RecognizeDrawingCore(jpegStream, conversionDpi).ConfigureAwait(false);
+                return await RecognizeDrawingCore(jpegStream, conversionDpi, cleanImage).ConfigureAwait(false);
             }
             finally
             {
@@ -66,7 +68,7 @@ namespace DocumentRecognition.Infrastructure.Services
             }
         }
 
-        private async Task<DrawingRecognitionResult> RecognizeDrawingCore(Stream jpegStream, int conversionDpi)
+        private async Task<DrawingRecognitionResult> RecognizeDrawingCore(Stream jpegStream, int conversionDpi, bool cleanImage)
         {
             await EnsureEnginesInitializedAsync().ConfigureAwait(false);
 
@@ -95,13 +97,25 @@ namespace DocumentRecognition.Infrastructure.Services
                         .GroupBy(d => d.Label)
                         .ToDictionary(gr => gr.Key);
 
+                    // Регионы результата: используются UI для подсветки и тултипов.
+                    // Координаты всех регионов приводятся к системе полного изображения.
+                    var regions = new List<RecognitionRegion>();
+                    AddLayoutBlockRegions(regions, layoutDetections);
+
                     string[] techReqs = null;
                     if (detectionsDict.TryGetValue("technical_requirements", out var technicalRequirements))
                     {
-                        techReqs = technicalRequirements.OrderByDescending(d => d.Box.X)
-                        .Select(d =>
+                        var orderedTechnicalRequirements = technicalRequirements
+                            .OrderByDescending(d => d.Box.X)
+                            .ToList();
+
+                        var technicalRequirementLines = new List<string>(orderedTechnicalRequirements.Count);
+
+                        for (var requirementIndex = 0; requirementIndex < orderedTechnicalRequirements.Count; requirementIndex++)
                         {
-                            using (Mat roiMat = new Mat(orientedMat, d.Box))
+                            var detection = orderedTechnicalRequirements[requirementIndex];
+
+                            using (Mat roiMat = new Mat(orientedMat, detection.Box))
                             {
                                 var options = new DetectOptions(
                                     padding: (int)(20 * scale),
@@ -118,11 +132,21 @@ namespace DocumentRecognition.Infrastructure.Services
 
                                 var ocrResult = _ocrLite.Detect(roiMat, options);
 
-                                // Cv2.ImShow("tech reqs", ocrResult.BoxImg);
+                                technicalRequirementLines.Add(ocrResult.StrRes);
 
-                                return ocrResult.StrRes;
+                                // Все OCR-строки одного блока требований получают общий ключ:
+                                // он связывает наведение на изображение с пунктом списка в UI.
+                                AddOcrLineRegions(
+                                    regions,
+                                    ocrResult,
+                                    detection.Box.X,
+                                    detection.Box.Y,
+                                    label: "technical_requirements",
+                                    key: $"technical_requirements:{requirementIndex}");
                             }
-                        }).ToArray();
+                        }
+
+                        techReqs = technicalRequirementLines.ToArray();
                     }
 
                     Dictionary<string, CellMatchResult> matchedCells = null;
@@ -150,7 +174,17 @@ namespace DocumentRecognition.Infrastructure.Services
                             var processor = new TitleBlockProcessor();
                             matchedCells = processor.ProcessTitleBlockWithOcr(roiMat, titleBlockOcrResult);
 
-                            processor.DrawDebugOcr(roiMat, matchedCells, titleBlockOcrResult);
+                            AddTitleBlockCellRegions(regions, matchedCells, titleBlock.Box.X, titleBlock.Box.Y);
+                            AddOcrLineRegions(
+                                regions,
+                                titleBlockOcrResult,
+                                titleBlock.Box.X,
+                                titleBlock.Box.Y,
+                                label: "title_block",
+                                key: null);
+
+                            if (!cleanImage)
+                                processor.DrawDebugOcr(roiMat, matchedCells, titleBlockOcrResult);
 
                             // Cv2.ImShow("Detected boxes", roiMat);
                         }
@@ -164,7 +198,17 @@ namespace DocumentRecognition.Infrastructure.Services
                         {
                             var additionalGraphsLeftCells = _wiredTableCellDetector.Detect(roiMat);
 
-                            _wiredTableCellDetector.DrawDetections(roiMat, additionalGraphsLeftCells);
+                            // Рамки рисуются только для отладочного изображения;
+                            // при cleanImage координаты доступны через Regions.
+                            if (!cleanImage)
+                                _wiredTableCellDetector.DrawDetections(roiMat, additionalGraphsLeftCells);
+
+                            AddTableCellRegions(
+                                regions,
+                                additionalGraphsLeftCells,
+                                additionalGraphs.Box.X,
+                                additionalGraphs.Box.Y,
+                                additionalGraphs.Label);
                         }
                     }
 
@@ -176,7 +220,15 @@ namespace DocumentRecognition.Infrastructure.Services
                         {
                             var configTableCells = _wiredTableCellDetector.Detect(roiMat);
 
-                            _wiredTableCellDetector.DrawDetections(roiMat, configTableCells);
+                            if (!cleanImage)
+                                _wiredTableCellDetector.DrawDetections(roiMat, configTableCells);
+
+                            AddTableCellRegions(
+                                regions,
+                                configTableCells,
+                                configurationTable.Box.X,
+                                configurationTable.Box.Y,
+                                configurationTable.Label);
                         }
                     }
 
@@ -188,11 +240,21 @@ namespace DocumentRecognition.Infrastructure.Services
                         {
                             var parameterTableCells = _wiredTableCellDetector.Detect(roiMat);
 
-                            _wiredTableCellDetector.DrawDetections(roiMat, parameterTableCells);
+                            if (!cleanImage)
+                                _wiredTableCellDetector.DrawDetections(roiMat, parameterTableCells);
+
+                            AddTableCellRegions(
+                                regions,
+                                parameterTableCells,
+                                parameterTable.Box.X,
+                                parameterTable.Box.Y,
+                                parameterTable.Label);
                         }
                     }
 
-                    var debugImage = _drawingLayoutDetector.DrawDetections(orientedMat, layoutDetections);
+                    var debugImage = cleanImage
+                        ? orientedMat
+                        : _drawingLayoutDetector.DrawDetections(orientedMat, layoutDetections);
 
                     List<Signature> signatures = new List<Signature>();
                     for (int row = 5; row <= 10; row++)
@@ -228,11 +290,120 @@ namespace DocumentRecognition.Infrastructure.Services
                         Signatures = signatures
                     };
 
-                    DrawingRecognitionResult res = new DrawingRecognitionResult(titleBlockResult, techReqs, debugImage.ToBytes());
+                    DrawingRecognitionResult res = new DrawingRecognitionResult(
+                        titleBlockResult,
+                        techReqs,
+                        debugImage.ToBytes(),
+                        regions,
+                        orientedMat.Width,
+                        orientedMat.Height,
+                        conversionDpi);
 
                     return res;
                 }
             }
+        }
+
+        /// <summary>
+        /// Добавляет регионы блоков разметки чертежа (координаты уже в полном изображении).
+        /// </summary>
+        private static void AddLayoutBlockRegions(List<RecognitionRegion> regions, List<DrawingLayoutDetection> detections)
+        {
+            foreach (var detection in detections)
+            {
+                regions.Add(new RecognitionRegion(
+                    ToPixelBox(detection.Box),
+                    RecognitionRegionKind.LayoutBlock,
+                    label: detection.Label,
+                    score: detection.Score));
+            }
+        }
+
+        /// <summary>
+        /// Добавляет регионы ячеек шаблонной сетки основной надписи.
+        /// Координаты ячеек заданы внутри ROI, поэтому смещаются на позицию ROI.
+        /// </summary>
+        private static void AddTitleBlockCellRegions(
+            List<RecognitionRegion> regions,
+            Dictionary<string, CellMatchResult> matchedCells,
+            int offsetX,
+            int offsetY)
+        {
+            if (matchedCells == null)
+                return;
+
+            foreach (var cell in matchedCells.Values)
+            {
+                regions.Add(new RecognitionRegion(
+                    ToPixelBox(cell.ExtractedRoi, offsetX, offsetY),
+                    RecognitionRegionKind.TitleBlockCell,
+                    label: cell.CellId,
+                    key: cell.CellId,
+                    text: cell.Text,
+                    score: cell.MatchedDetection?.Score ?? 0f));
+            }
+        }
+
+        /// <summary>
+        /// Добавляет регионы распознанных OCR-строк внутри ROI с указанным смещением.
+        /// </summary>
+        private static void AddOcrLineRegions(
+            List<RecognitionRegion> regions,
+            OcrResult ocrResult,
+            int offsetX,
+            int offsetY,
+            string label,
+            string key)
+        {
+            if (ocrResult?.TextBlocks == null)
+                return;
+
+            foreach (var textBlock in ocrResult.TextBlocks)
+            {
+                if (string.IsNullOrWhiteSpace(textBlock.Text) || textBlock.BoxPoints == null || textBlock.BoxPoints.Count == 0)
+                    continue;
+
+                var rect = Cv2.BoundingRect(textBlock.BoxPoints.ToArray());
+
+                regions.Add(new RecognitionRegion(
+                    ToPixelBox(rect, offsetX, offsetY),
+                    RecognitionRegionKind.OcrLine,
+                    label: label,
+                    key: key,
+                    text: textBlock.Text,
+                    score: textBlock.BoxScore));
+            }
+        }
+
+        /// <summary>
+        /// Добавляет регионы ячеек найденной таблицы (текст в них не распознаётся).
+        /// </summary>
+        private static void AddTableCellRegions(
+            List<RecognitionRegion> regions,
+            List<TableCellDetection> cells,
+            int offsetX,
+            int offsetY,
+            string tableLabel)
+        {
+            if (cells == null)
+                return;
+
+            for (var index = 0; index < cells.Count; index++)
+            {
+                var cell = cells[index];
+
+                regions.Add(new RecognitionRegion(
+                    ToPixelBox(cell.Box, offsetX, offsetY),
+                    RecognitionRegionKind.TableCell,
+                    label: tableLabel,
+                    key: $"{tableLabel}:{index}",
+                    score: cell.Score));
+            }
+        }
+
+        private static PixelBox ToPixelBox(Rect rect, int offsetX = 0, int offsetY = 0)
+        {
+            return new PixelBox(rect.X + offsetX, rect.Y + offsetY, rect.Width, rect.Height);
         }
     }
 }

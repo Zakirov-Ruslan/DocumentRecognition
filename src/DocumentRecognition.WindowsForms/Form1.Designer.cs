@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            pictureBox1 = new PictureBox();
+            imageViewer1 = new ImageViewerControl();
             button1 = new Button();
             tabControl1 = new TabControl();
             tabPageTitleBlock = new TabPage();
@@ -42,7 +42,6 @@
             colValue = new DataGridViewTextBoxColumn();
             tabPageRequirements = new TabPage();
             txtTechnicalRequirements = new TextBox();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             tabControl1.SuspendLayout();
             tabPageTitleBlock.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvSignatures).BeginInit();
@@ -50,16 +49,16 @@
             tabPageRequirements.SuspendLayout();
             SuspendLayout();
             // 
-            // pictureBox1
+            // imageViewer1
             // 
-            pictureBox1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            pictureBox1.BorderStyle = BorderStyle.FixedSingle;
-            pictureBox1.Location = new Point(12, 12);
-            pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(620, 536);
-            pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
-            pictureBox1.TabIndex = 0;
-            pictureBox1.TabStop = false;
+            imageViewer1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            imageViewer1.BorderStyle = BorderStyle.FixedSingle;
+            imageViewer1.Location = new Point(12, 12);
+            imageViewer1.Name = "imageViewer1";
+            imageViewer1.Size = new Size(620, 536);
+            imageViewer1.TabIndex = 0;
+            imageViewer1.HoveredRegionChanged += imageViewer1_HoveredRegionChanged;
+            imageViewer1.RegionSelected += imageViewer1_RegionSelected;
             // 
             // button1
             // 
@@ -113,6 +112,7 @@
             dgvSignatures.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvSignatures.Size = new Size(438, 215);
             dgvSignatures.TabIndex = 2;
+            dgvSignatures.SelectionChanged += dgvSignatures_SelectionChanged;
             // 
             // colSignatory
             // 
@@ -161,6 +161,7 @@
             dgvTitleBlock.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvTitleBlock.Size = new Size(438, 220);
             dgvTitleBlock.TabIndex = 0;
+            dgvTitleBlock.SelectionChanged += dgvTitleBlock_SelectionChanged;
             // 
             // colField
             // 
@@ -205,10 +206,9 @@
             ClientSize = new Size(1114, 560);
             Controls.Add(tabControl1);
             Controls.Add(button1);
-            Controls.Add(pictureBox1);
+            Controls.Add(imageViewer1);
             Name = "Form1";
             Text = "Document Recognition";
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             tabControl1.ResumeLayout(false);
             tabPageTitleBlock.ResumeLayout(false);
             tabPageTitleBlock.PerformLayout();
@@ -221,7 +221,7 @@
 
         #endregion
 
-        private PictureBox pictureBox1;
+        private ImageViewerControl imageViewer1;
         private Button button1;
         private TabControl tabControl1;
         private TabPage tabPageTitleBlock;
