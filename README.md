@@ -110,7 +110,7 @@ flowchart TB
 - [PaddleX](https://github.com/PaddlePaddle/PaddleX) — пайплайны обучения/экспорта;
 - [Paddle2ONNX](https://github.com/PaddlePaddle/Paddle2ONNX) — конвертация в ONNX.
 
-Имена файлов по умолчанию заданы в `OcrSettings` (`Infrastructure/Extensions/DependencyInjection.cs`). В папке могут лежать неиспользуемые артефакты прошлых версий (`rec_gost_cyrillic_v6_2.onnx`, `LCNet_x1_0_doc_ori.onnx`) — они не задействованы.
+Имена файлов по умолчанию заданы в `OcrSettings` (`Infrastructure/Extensions/DependencyInjection.cs`) и переопределяются секцией `OcrSettings` в конфигурации приложения (`appsettings.json` для WebApi, in-memory-коллекция для WinForms).
 
 ### Где взять модели
 
@@ -264,7 +264,6 @@ dotnet run --project src/DocumentRecognition.Console -- --input drawing.pdf
 
 ## Технический долг и планы
 
-- [ ] Привязка `OcrSettings` из `appsettings.json` (сейчас используются значения по умолчанию из класса).
 - [ ] Многостраничная обработка PDF.
 - [ ] Параллельное распознавание (пул экземпляров OcrLite / батчинг).
 - [ ] Docker-образ с CPU-провайдером ONNX и Linux-нативными зависимостями.

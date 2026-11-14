@@ -20,10 +20,10 @@ namespace DocumentRecognition.WindowsForms
                     ["OcrSettings:ModelsDir"] = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OnnxModels"),
                     ["OcrSettings:DetModel"] = "ch_PP-OCRv5_det_server.onnx",
                     ["OcrSettings:ClsModel"] = "ch_PP-LCNet_x1_0_textline_ori_cls_server.onnx",
-                    ["OcrSettings:RecModel"] = "rec_gost_cyrillic_v5.onnx",
+                    ["OcrSettings:RecModel"] = "rec_gost_cyrillic_v7.onnx",
                     ["OcrSettings:DictFile"] = "ppocrv5_cyrillic_dict.txt",
-                    ["OcrSettings:DrawingLayoutDetModel"] = "drawing_det_v3.onnx",
-                    ["OcrSettings:DocOrientationClsModel"] = "doc_orientation_cls.onnx"
+                    ["OcrSettings:DrawingLayoutDetModel"] = "drawing_det_v4.onnx",
+                    ["OcrSettings:DocOrientationClsModel"] = "techdoc_ori_cls.onnx"
                 })
                 .Build();
 

@@ -15,7 +15,11 @@ namespace DocumentRecognition.Infrastructure.Extensions
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
-            services.Configure<OcrSettings>(a => configuration.GetSection(OcrSettings.SectionName));
+            // Секция OcrSettings из IConfiguration накладывается поверх значений по умолчанию
+            // из самого класса OcrSettings (Bind только перезаписывает заданные ключи).
+            services.AddOptions<OcrSettings>()
+                .Bind(configuration.GetSection(OcrSettings.SectionName))
+                .ValidateOnStart();
 
             // Тяжёлые зависимости (модели ONNX) создаются один раз на приложение.
             services.AddSingleton<IRecognizer, RecognitionService>();
