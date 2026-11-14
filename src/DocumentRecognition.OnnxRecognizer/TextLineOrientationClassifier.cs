@@ -136,13 +136,13 @@ namespace Ocr
             {
                 int currentBatchSize = Math.Min(batchSize, partImgs.Count - startIdx);
 
-                var batchTensor = new DenseTensor<float>(new[] { currentBatchSize, 3, 48, 192 });
+                var batchTensor = new DenseTensor<float>(new[] { currentBatchSize, 3, 80, 160 });
 
                 for (int b = 0; b < currentBatchSize; b++)
                 {
                     using (Mat resized = new Mat())
                     {
-                        Cv2.Resize(partImgs[startIdx + b], resized, new Size(192, 48));
+                        Cv2.Resize(partImgs[startIdx + b], resized, new Size(160, 80));
                         var normalized = OcrUtils.SubstractMeanNormalize(resized, _meanValues, _normValues);
 
                         for (int c = 0; c < 3; c++)
